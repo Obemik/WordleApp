@@ -5,15 +5,15 @@ public enum GameStatus
     /// <summary>
     /// Гра в процесі
     /// </summary>
-    InProgress = 0,
+    InProgress,
     
     /// <summary>
     /// Гра виграна
     /// </summary>
-    Won = 1,
+    Won,
     
     /// <summary>
     /// Гра програна
     /// </summary>
-    Lost = 2
+    Lost
 }

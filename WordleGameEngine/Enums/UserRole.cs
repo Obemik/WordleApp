@@ -5,10 +5,10 @@ public enum UserRole
     /// <summary>
     /// Звичайний гравець
     /// </summary>
-    Player = 0,
+    Player,
     
     /// <summary>
     /// Адміністратор
     /// </summary>
-    Admin = 1
+    Admin
 }
