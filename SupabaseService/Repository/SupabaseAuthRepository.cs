@@ -6,16 +6,18 @@ public partial class SupabaseRepository
 {
     public bool IsLoggedIn
     {
-        get => CloudDatabase?.SupabaseClient.Auth.CurrentSession != null;
+        get => _isInitialized && CloudDatabase?.SupabaseClient.Auth.CurrentSession != null;
     }
     
     public async Task Login(string email, string password)
     {
-        await CloudDatabase?.SupabaseClient.Auth.SignIn(email, password)!;
+        await EnsureInitializedAsync();
+        await CloudDatabase!.SupabaseClient.Auth.SignIn(email, password);
     }
     
     public async Task Register(string email, string password, string username)
     {
+        await EnsureInitializedAsync();
         var signUpOptions = new SignUpOptions
         {
             Data = new Dictionary<string, object>
@@ -23,21 +25,22 @@ public partial class SupabaseRepository
                 { "username", username }
             }
         };
-        await CloudDatabase?.SupabaseClient.Auth.SignUp(email, password, signUpOptions)!;
+        await CloudDatabase!.SupabaseClient.Auth.SignUp(email, password, signUpOptions);
     }
     
     public async Task Logout()
     {
-        await CloudDatabase?.SupabaseClient.Auth.SignOut()!;
+        await EnsureInitializedAsync();
+        await CloudDatabase!.SupabaseClient.Auth.SignOut();
     }
     
     public string? GetCurrentUserId()
     {
-        return CloudDatabase?.SupabaseClient.Auth.CurrentUser?.Id;
+        return _isInitialized ? CloudDatabase?.SupabaseClient.Auth.CurrentUser?.Id : null;
     }
     
     public string? GetCurrentUserEmail()
     {
-        return CloudDatabase?.SupabaseClient.Auth.CurrentUser?.Email;
+        return _isInitialized ? CloudDatabase?.SupabaseClient.Auth.CurrentUser?.Email : null;
     }
 }

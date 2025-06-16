@@ -6,26 +6,29 @@ public partial class SupabaseRepository
 {
     public async Task<UserDbModel?> GetUserByIdAsync(string userId)
     {
-        var result = await CloudDatabase?.SupabaseClient
+        await EnsureInitializedAsync();
+        var result = await CloudDatabase!.SupabaseClient
             .From<UserDbModel>()
             .Where(u => u.Id == userId)
-            .Single()!;
+            .Single();
         
         return result;
     }
     
     public async Task<UserDbModel?> GetUserByEmailAsync(string email)
     {
-        var result = await CloudDatabase?.SupabaseClient
+        await EnsureInitializedAsync();
+        var result = await CloudDatabase!.SupabaseClient
             .From<UserDbModel>()
             .Where(u => u.Email == email)
-            .Single()!;
+            .Single();
         
         return result;
     }
     
     public async Task<UserDbModel> CreateUserAsync(string id, string username, string email, string role = "Player")
     {
+        await EnsureInitializedAsync();
         var newUser = new UserDbModel
         {
             Id = id,
@@ -36,46 +39,49 @@ public partial class SupabaseRepository
             UpdatedAt = DateTime.UtcNow
         };
         
-        var result = await CloudDatabase?.SupabaseClient
+        var result = await CloudDatabase!.SupabaseClient
             .From<UserDbModel>()
-            .Insert(newUser)!;
+            .Insert(newUser);
         
         return result.Models.First();
     }
     
     public async Task<UserDbModel> UpdateUserAsync(UserDbModel user)
     {
+        await EnsureInitializedAsync();
         user.UpdatedAt = DateTime.UtcNow;
         
-        var result = await CloudDatabase?.SupabaseClient
+        var result = await CloudDatabase!.SupabaseClient
             .From<UserDbModel>()
             .Where(u => u.Id == user.Id)
             .Set(u => u.Username, user.Username)
             .Set(u => u.Email, user.Email)
             .Set(u => u.Role, user.Role)
             .Set(u => u.UpdatedAt, user.UpdatedAt)
-            .Update()!;
+            .Update();
         
         return result.Models.First();
     }
     
     public async Task<List<UserDbModel>> GetAllUsersAsync()
     {
-        var result = await CloudDatabase?.SupabaseClient
+        await EnsureInitializedAsync();
+        var result = await CloudDatabase!.SupabaseClient
             .From<UserDbModel>()
-            .Get()!;
+            .Get();
         
         return result?.Models ?? new List<UserDbModel>();
     }
     
     public async Task<bool> DeleteUserAsync(string userId)
     {
+        await EnsureInitializedAsync();
         try
         {
-            await CloudDatabase?.SupabaseClient
+            await CloudDatabase!.SupabaseClient
                 .From<UserDbModel>()
                 .Where(u => u.Id == userId)
-                .Delete()!;
+                .Delete();
             
             return true;
         }

@@ -9,13 +9,21 @@ public class AuthenticationService : INotifyPropertyChanged
     private readonly SupabaseRepository _repository;
     private bool _isLoggedIn;
     private bool _isRegisteredSuccessfully = false;
+    private bool _isInitialized = false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     
     public AuthenticationService(SupabaseRepository repository)
     {
         _repository = repository;
-        _isLoggedIn = _repository.IsLoggedIn;
+        InitializeAsync();
+    }
+    
+    private async void InitializeAsync()
+    {
+        await _repository.InitializeAsync();
+        _isInitialized = true;
+        IsLoggedIn = _repository.IsLoggedIn;
     }
     
     public bool IsRegisteredSuccessfully

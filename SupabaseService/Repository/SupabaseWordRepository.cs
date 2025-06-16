@@ -6,15 +6,17 @@ public partial class SupabaseRepository
 {
     public async Task<List<WordDbModel>> GetAllWordsAsync()
     {
-        var result = await CloudDatabase?.SupabaseClient
+        await EnsureInitializedAsync();
+        var result = await CloudDatabase!.SupabaseClient
             .From<WordDbModel>()
             .Where(w => w.IsActive == true)
-            .Get()!;
+            .Get();
         return result?.Models ?? new List<WordDbModel>();
     }
     
     public async Task<WordDbModel?> GetRandomWordAsync()
     {
+        await EnsureInitializedAsync();
         var words = await GetAllWordsAsync();
         if (words.Count == 0) return null;
         
@@ -24,6 +26,7 @@ public partial class SupabaseRepository
     
     public async Task<WordDbModel> AddWordAsync(string word, string? addedBy = null)
     {
+        await EnsureInitializedAsync();
         var newWord = new WordDbModel
         {
             Word = word.ToUpper(),
@@ -32,21 +35,22 @@ public partial class SupabaseRepository
             AddedBy = addedBy
         };
         
-        var result = await CloudDatabase?.SupabaseClient
+        var result = await CloudDatabase!.SupabaseClient
             .From<WordDbModel>()
-            .Insert(newWord)!;
+            .Insert(newWord);
         
         return result.Models.First();
     }
     
     public async Task<bool> DeleteWordAsync(int wordId)
     {
+        await EnsureInitializedAsync();
         try
         {
-            await CloudDatabase?.SupabaseClient
+            await CloudDatabase!.SupabaseClient
                 .From<WordDbModel>()
                 .Where(w => w.Id == wordId)
-                .Delete()!;
+                .Delete();
             
             return true;
         }
@@ -58,11 +62,12 @@ public partial class SupabaseRepository
     
     public async Task<bool> WordExistsAsync(string word)
     {
-        var result = await CloudDatabase?.SupabaseClient
+        await EnsureInitializedAsync();
+        var result = await CloudDatabase!.SupabaseClient
             .From<WordDbModel>()
             .Where(w => w.Word == word.ToUpper() && w.IsActive == true)
-            .Get()!;
+            .Get();
         
-        return result?.Models.Count > 0;
+        return result?.Models?.Count > 0;
     }
 }

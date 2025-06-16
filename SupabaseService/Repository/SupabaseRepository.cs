@@ -6,42 +6,44 @@ public partial class SupabaseRepository
 {
     private CloudDatabase? CloudDatabase { get; set; } = null;
     private JsonRepository? JsonRepository { get; set; } = null;
+    private bool _isInitialized = false;
     
     public SupabaseRepository()
     {
         //Get solution directory
         string solutionDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\..\"));
         //Get file path
-        string filePath = solutionDirectory + @"SupabaseService\.env\supabase_keys.json";
-        try
-        {
-            if (string.IsNullOrEmpty(filePath))
-            {
-                throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-            }
-            InitSupabaseClient(filePath);
-        }
-        catch (Exception e)
-        {
-            throw new Exception("Error initializing SupabaseRepository", e);
-        }
+        string filePath = Path.Combine(solutionDirectory, @"SupabaseService\.env\supabase_keys.json");
+        
+        // Ініціалізація відбувається асинхронно в методі InitializeAsync
+        JsonRepository = new JsonRepository(filePath);
     }
     
-    private async void InitSupabaseClient(string filePath)
+    public async Task InitializeAsync()
     {
+        if (_isInitialized) return;
+        
         try
         {
-            JsonRepository = new JsonRepository(filePath);
-            var supabaseConfigs = await JsonRepository.ReadJsonAsync();
+            var supabaseConfigs = await JsonRepository!.ReadJsonAsync();
             if (supabaseConfigs == null || supabaseConfigs.Url == null || supabaseConfigs.Key == null)
             {
                 throw new Exception("Supabase configs are null");
             }
             CloudDatabase = new CloudDatabase(supabaseConfigs.Url, supabaseConfigs.Key);
+            _isInitialized = true;
         }
         catch (Exception e)
         {
             throw new Exception("Error initializing Supabase client", e);
+        }
+    }
+    
+    private async Task EnsureInitializedAsync()
+    {
+        if (!_isInitialized)
+        {
+            await InitializeAsync();
         }
     }
 }
