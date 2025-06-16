@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using WordleApp.Services;
-using WordleApp.Helpers;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 
