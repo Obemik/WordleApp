@@ -41,12 +41,19 @@ public partial class SupabaseRepository
     
     public async Task<bool> DeleteWordAsync(int wordId)
     {
-        var result = await CloudDatabase?.SupabaseClient
-            .From<WordDbModel>()
-            .Where(w => w.Id == wordId)
-            .Delete()!;
-        
-        return result != null;
+        try
+        {
+            await CloudDatabase?.SupabaseClient
+                .From<WordDbModel>()
+                .Where(w => w.Id == wordId)
+                .Delete()!;
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
     
     public async Task<bool> WordExistsAsync(string word)

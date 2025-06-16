@@ -1,15 +1,17 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using WordleApp.ViewModels;
 using WordleApp.Services;
 using WordleApp.Helpers;
-using WordleApp.Views;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 
 namespace WordleApp.ViewModels;
 
-public class AuthenticationViewModel : BaseViewModel
+public class AuthenticationViewModel : INotifyPropertyChanged
 {
     private readonly AuthenticationService _authService;
-    private readonly NavigationService _navigationService;
+    private readonly ILogger<AuthenticationViewModel>? _logger;
     
     private string _email = string.Empty;
     private string _password = string.Empty;
@@ -18,53 +20,78 @@ public class AuthenticationViewModel : BaseViewModel
     private bool _isLoginMode = true;
     private bool _isLoading = false;
 
-    public AuthenticationViewModel(AuthenticationService authService, NavigationService navigationService)
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public AuthenticationViewModel(AuthenticationService authService, ILogger<AuthenticationViewModel>? logger = null)
     {
         _authService = authService;
-        _navigationService = navigationService;
+        _logger = logger;
 
-        LoginCommand = new RelayCommand(async () => await LoginAsync(), CanLogin);
-        RegisterCommand = new RelayCommand(async () => await RegisterAsync(), CanRegister);
+        LoginCommand = new AsyncRelayCommand(OnLoginAsync);
+        RegisterCommand = new AsyncRelayCommand(OnRegisterAsync);
         SwitchModeCommand = new RelayCommand(SwitchMode);
-
-        // Subscribe to authentication service changes
-        _authService.PropertyChanged += OnAuthServicePropertyChanged;
     }
 
     public string Email
     {
         get => _email;
-        set => SetProperty(ref _email, value);
+        set
+        {
+            _email = value;
+            OnPropertyChanged();
+        }
     }
 
     public string Password
     {
         get => _password;
-        set => SetProperty(ref _password, value);
+        set
+        {
+            _password = value;
+            OnPropertyChanged();
+        }
     }
 
     public string Username
     {
         get => _username;
-        set => SetProperty(ref _username, value);
+        set
+        {
+            _username = value;
+            OnPropertyChanged();
+        }
     }
 
     public string ErrorMessage
     {
         get => _errorMessage;
-        set => SetProperty(ref _errorMessage, value);
+        set
+        {
+            _errorMessage = value;
+            OnPropertyChanged();
+        }
     }
 
     public bool IsLoginMode
     {
         get => _isLoginMode;
-        set => SetProperty(ref _isLoginMode, value);
+        set
+        {
+            _isLoginMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ModeText));
+            OnPropertyChanged(nameof(SwitchModeText));
+        }
     }
 
     public bool IsLoading
     {
         get => _isLoading;
-        set => SetProperty(ref _isLoading, value);
+        set
+        {
+            _isLoading = value;
+            OnPropertyChanged();
+        }
     }
 
     public string ModeText => IsLoginMode ? "Увійти" : "Зареєструватися";
@@ -74,7 +101,7 @@ public class AuthenticationViewModel : BaseViewModel
     public ICommand RegisterCommand { get; }
     public ICommand SwitchModeCommand { get; }
 
-    private async Task LoginAsync()
+    private async Task OnLoginAsync()
     {
         try
         {
@@ -86,6 +113,7 @@ public class AuthenticationViewModel : BaseViewModel
         catch (Exception ex)
         {
             ErrorMessage = $"Помилка входу: {ex.Message}";
+            _logger?.LogError(ex, "Login failed for user {Email}", Email);
         }
         finally
         {
@@ -93,7 +121,7 @@ public class AuthenticationViewModel : BaseViewModel
         }
     }
 
-    private async Task RegisterAsync()
+    private async Task OnRegisterAsync()
     {
         try
         {
@@ -112,6 +140,7 @@ public class AuthenticationViewModel : BaseViewModel
         catch (Exception ex)
         {
             ErrorMessage = $"Помилка реєстрації: {ex.Message}";
+            _logger?.LogError(ex, "Registration failed for user {Username}", Username);
         }
         finally
         {
@@ -133,23 +162,8 @@ public class AuthenticationViewModel : BaseViewModel
         Username = string.Empty;
     }
 
-    private bool CanLogin()
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        return !IsLoading && !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password);
-    }
-
-    private bool CanRegister()
-    {
-        return !IsLoading && !string.IsNullOrWhiteSpace(Email) && 
-               !string.IsNullOrWhiteSpace(Password) && !string.IsNullOrWhiteSpace(Username);
-    }
-
-    private void OnAuthServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(AuthenticationService.IsLoggedIn) && _authService.IsLoggedIn)
-        {
-            // Navigate to main menu when successfully logged in
-            _navigationService.NavigateTo<PlayerMenuPage, PlayerMenuViewModel>();
-        }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

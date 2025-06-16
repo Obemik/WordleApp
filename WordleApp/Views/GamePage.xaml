@@ -1,12 +1,113 @@
 <UserControl x:Class="WordleApp.Views.GamePage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:WordleApp.Views"
-             mc:Ignorable="d"
-             d:DesignHeight="300" d:DesignWidth="300">
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
         
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="20,20,20,10">
+            <TextBlock Text="WORDLE" 
+                       FontSize="28" 
+                       FontWeight="Bold" 
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding AttemptText}" 
+                       FontSize="14" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,5,0,0"/>
+            <TextBlock Text="{Binding GameStatus}" 
+                       FontSize="14" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,5,0,0"/>
+        </StackPanel>
+        
+        <!-- Game Grid -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding GameGrid}" 
+                          HorizontalAlignment="Center">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ItemsControl ItemsSource="{Binding Letters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="50" Height="50" 
+                                            Margin="2"
+                                            BorderBrush="Gray" 
+                                            BorderThickness="2"
+                                            Background="{Binding Status, Converter={StaticResource GuessResultToColorConverter}}">
+                                        <TextBlock Text="{Binding Letter}" 
+                                                   FontSize="20" 
+                                                   FontWeight="Bold" 
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"
+                                                   Foreground="White"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        
+        <!-- Current Guess Display -->
+        <TextBlock Grid.Row="2" 
+                   Text="{Binding CurrentGuess}" 
+                   FontSize="24" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center" 
+                   Margin="20,10"/>
+        
+        <!-- Virtual Keyboard -->
+        <StackPanel Grid.Row="3" Margin="20">
+            <!-- First Row: QWERTYUIOP -->
+            <ItemsControl ItemsSource="{Binding VirtualKeyboard}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel HorizontalAlignment="Center"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Content="{Binding Letter}"
+                                Command="{Binding DataContext.AddLetterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding Letter}"
+                                Width="40" Height="40"
+                                Margin="2"
+                                Background="{Binding Status, Converter={StaticResource GuessResultToColorConverter}}"
+                                Foreground="White"
+                                FontWeight="Bold"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            
+            <!-- Action Buttons -->
+            <StackPanel Orientation="Horizontal" 
+                        HorizontalAlignment="Center" 
+                        Margin="0,10,0,0">
+                <Button Content="⌫" 
+                        Command="{Binding RemoveLetterCommand}"
+                        Width="60" Height="40"
+                        Margin="5"/>
+                <Button Content="ENTER" 
+                        Command="{Binding SubmitGuessCommand}"
+                        Width="80" Height="40"
+                        Margin="5"/>
+                <Button Content="Нова гра" 
+                        Command="{Binding NewGameCommand}"
+                        Width="80" Height="40"
+                        Margin="5"/>
+            </StackPanel>
+        </StackPanel>
     </Grid>
 </UserControl>
