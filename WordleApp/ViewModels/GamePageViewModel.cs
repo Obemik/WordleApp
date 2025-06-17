@@ -21,6 +21,7 @@ public class GamePageViewModel : BaseViewModel
     private bool _isGameOver = false;
     private int _currentAttempt = 0;
     private int _maxAttempts = 6;
+    private bool _isLoading = false;
 
     public GamePageViewModel(GameService gameService, NavigationService navigationService, WordValidationService wordValidationService)
     {
@@ -38,7 +39,7 @@ public class GamePageViewModel : BaseViewModel
 
         InitializeGameGrid();
         InitializeVirtualKeyboard();
-        LoadCurrentGame();
+        _ = LoadOrStartNewGame();
     }
 
     public ObservableCollection<GuessModel> GameGrid { get; }
@@ -47,7 +48,15 @@ public class GamePageViewModel : BaseViewModel
     public string CurrentGuess
     {
         get => _currentGuess;
-        set => SetProperty(ref _currentGuess, value);
+        set
+        {
+            if (SetProperty(ref _currentGuess, value))
+            {
+                ((AsyncRelayCommand)SubmitGuessCommand).NotifyCanExecuteChanged();
+                ((RelayCommand)RemoveLetterCommand).NotifyCanExecuteChanged();
+                OnPropertyChanged();
+            }
+        }
     }
 
     public string GameStatus
@@ -65,7 +74,19 @@ public class GamePageViewModel : BaseViewModel
     public int CurrentAttempt
     {
         get => _currentAttempt;
-        set => SetProperty(ref _currentAttempt, value);
+        set
+        {
+            if (SetProperty(ref _currentAttempt, value))
+            {
+                OnPropertyChanged(nameof(AttemptText));
+            }
+        }
+    }
+
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set => SetProperty(ref _isLoading, value);
     }
 
     public string AttemptText => $"Спроба {CurrentAttempt + 1} з {_maxAttempts}";
@@ -79,9 +100,14 @@ public class GamePageViewModel : BaseViewModel
     {
         try
         {
-            if (!await _wordValidationService.IsValidWordAsync(CurrentGuess))
+            IsLoading = true;
+            
+            // Перевіряємо чи слово валідне
+            var isValidWord = await _wordValidationService.IsValidWordAsync(CurrentGuess);
+            if (!isValidWord)
             {
-                GameStatus = "Невалідне слово!";
+                GameStatus = "Такого слова немає в словнику!";
+                IsLoading = false;
                 return;
             }
 
@@ -120,11 +146,15 @@ public class GamePageViewModel : BaseViewModel
         {
             GameStatus = $"Помилка: {ex.Message}";
         }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private void AddLetter(string? letter)
     {
-        if (letter != null && CurrentGuess.Length < 5 && !IsGameOver)
+        if (letter != null && CurrentGuess.Length < 5 && !IsGameOver && !IsLoading)
         {
             CurrentGuess += letter.ToUpper();
         }
@@ -142,23 +172,29 @@ public class GamePageViewModel : BaseViewModel
     {
         try
         {
+            IsLoading = true;
             await _gameService.StartNewGameAsync();
             ResetGame();
+            GameStatus = "Нова гра почалась! Почніть відгадувати!";
         }
         catch (Exception ex)
         {
             GameStatus = $"Помилка створення нової гри: {ex.Message}";
         }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private bool CanSubmitGuess()
     {
-        return CurrentGuess.Length == 5 && !IsGameOver;
+        return CurrentGuess.Length == 5 && !IsGameOver && !IsLoading;
     }
 
     private bool CanRemoveLetter()
     {
-        return CurrentGuess.Length > 0 && !IsGameOver;
+        return CurrentGuess.Length > 0 && !IsGameOver && !IsLoading;
     }
 
     private void InitializeGameGrid()
@@ -214,18 +250,21 @@ public class GamePageViewModel : BaseViewModel
         }
     }
 
-    private async void LoadCurrentGame()
+    private async Task LoadOrStartNewGame()
     {
         try
         {
+            IsLoading = true;
             var game = await _gameService.LoadCurrentGameAsync();
+            
             if (game != null)
             {
+                // Restore game state
                 _targetWord = game.TargetWord;
                 CurrentAttempt = game.Attempts;
                 IsGameOver = game.IsGameOver;
                 
-                // Restore game state
+                // Restore previous guesses
                 for (int i = 0; i < game.Guesses.Count; i++)
                 {
                     var guess = game.Guesses[i];
@@ -246,10 +285,19 @@ public class GamePageViewModel : BaseViewModel
                     GameStatus = "Продовжуйте відгадувати!";
                 }
             }
+            else
+            {
+                // Start new game
+                await StartNewGameAsync();
+            }
         }
         catch (Exception ex)
         {
             GameStatus = $"Помилка завантаження гри: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -258,7 +306,6 @@ public class GamePageViewModel : BaseViewModel
         CurrentGuess = string.Empty;
         CurrentAttempt = 0;
         IsGameOver = false;
-        GameStatus = "Почніть відгадувати!";
         
         InitializeGameGrid();
         InitializeVirtualKeyboard();

@@ -83,6 +83,13 @@ public class GameService : INotifyPropertyChanged
         if (CurrentGame == null || _currentGameDb == null)
             throw new InvalidOperationException("No active game");
 
+        // Check if word exists in database first
+        var wordExists = await _repository.WordExistsAsync(guess);
+        if (!wordExists)
+        {
+            throw new InvalidOperationException($"Word '{guess}' is not in the dictionary");
+        }
+
         var result = _gameEngine.MakeGuess(CurrentGame, guess);
         
         // Update database

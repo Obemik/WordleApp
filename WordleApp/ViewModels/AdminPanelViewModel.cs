@@ -47,7 +47,13 @@ public class AdminPanelViewModel : BaseViewModel
     public string NewWord
     {
         get => _newWord;
-        set => SetProperty(ref _newWord, value);
+        set 
+        { 
+            if (SetProperty(ref _newWord, value))
+            {
+                ((AsyncRelayCommand)AddWordCommand).NotifyCanExecuteChanged();
+            }
+        }
     }
 
     public string SearchText
@@ -124,19 +130,21 @@ public class AdminPanelViewModel : BaseViewModel
             IsLoading = true;
             StatusMessage = "Додавання слова...";
 
-            if (!_wordValidationService.IsValidWordFormat(NewWord))
+            var cleanWord = NewWord.Trim().ToUpper();
+            
+            if (!_wordValidationService.IsValidWordFormat(cleanWord))
             {
                 StatusMessage = "Слово повинно містити рівно 5 літер";
                 return;
             }
 
-            if (await _repository.WordExistsAsync(NewWord))
+            if (await _repository.WordExistsAsync(cleanWord))
             {
                 StatusMessage = "Це слово вже існує в словнику";
                 return;
             }
 
-            var addedWord = await _repository.AddWordAsync(NewWord, _authService.CurrentUserId);
+            var addedWord = await _repository.AddWordAsync(cleanWord, _authService.CurrentUserId);
             
             Words.Add(new WordModel
             {
@@ -149,7 +157,10 @@ public class AdminPanelViewModel : BaseViewModel
 
             NewWord = string.Empty;
             SearchWords();
-            StatusMessage = "Слово успішно додано";
+            StatusMessage = $"Слово '{cleanWord}' успішно додано";
+            
+            // Notify that can add word command state changed
+            ((AsyncRelayCommand)AddWordCommand).NotifyCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -224,4 +235,6 @@ public class AdminPanelViewModel : BaseViewModel
     {
         return !IsLoading && !string.IsNullOrWhiteSpace(NewWord) && NewWord.Length == 5;
     }
+    
+    
 }
