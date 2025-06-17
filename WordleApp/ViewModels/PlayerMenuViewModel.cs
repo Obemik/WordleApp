@@ -25,6 +25,15 @@ public class PlayerMenuViewModel : BaseViewModel
         ContinueGameCommand = new AsyncRelayCommand(ContinueGameAsync);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);
 
+        // Subscribe to changes in CurrentUser
+        _authService.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(AuthenticationService.CurrentUser))
+            {
+                LoadWelcomeMessage();
+            }
+        };
+
         LoadWelcomeMessage();
     }
 
@@ -82,7 +91,15 @@ public class PlayerMenuViewModel : BaseViewModel
 
     private void LoadWelcomeMessage()
     {
-        var userEmail = _authService.CurrentUserEmail;
-        WelcomeMessage = $"Вітаємо, {userEmail}!";
+        var username = _authService.CurrentUsername;
+        if (!string.IsNullOrEmpty(username))
+        {
+            WelcomeMessage = $"Вітаємо, {username}!";
+        }
+        else
+        {
+            var userEmail = _authService.CurrentUserEmail;
+            WelcomeMessage = $"Вітаємо, {userEmail}!";
+        }
     }
-}    
+}

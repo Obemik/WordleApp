@@ -86,7 +86,8 @@ public partial class App : Application
         {
             var navigationService = sp.GetRequiredService<NavigationService>();
             var authService = sp.GetRequiredService<AuthenticationService>();
-            return new MainWindow(navigationService, authService);
+            var repository = sp.GetRequiredService<SupabaseRepository>();
+            return new MainWindow(navigationService, authService, repository);
         });
     }
 
