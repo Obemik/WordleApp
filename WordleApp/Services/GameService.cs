@@ -14,17 +14,19 @@ public class GameService : INotifyPropertyChanged
     private readonly SupabaseRepository _repository;
     private readonly GameEngineService _gameEngine;
     private readonly AuthenticationService _authService;
+    private readonly WordValidationService _wordValidationService;
     
     private Game? _currentGame;
     private GameDbModel? _currentGameDb;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public GameService(SupabaseRepository repository, GameEngineService gameEngine, AuthenticationService authService)
+    public GameService(SupabaseRepository repository, GameEngineService gameEngine, AuthenticationService authService, WordValidationService wordValidationService)
     {
         _repository = repository;
         _gameEngine = gameEngine;
         _authService = authService;
+        _wordValidationService = wordValidationService;
     }
 
     public Game? CurrentGame
@@ -83,13 +85,11 @@ public class GameService : INotifyPropertyChanged
         if (CurrentGame == null || _currentGameDb == null)
             throw new InvalidOperationException("No active game");
 
-        // Check if word exists in database first
-        var wordExists = await _repository.WordExistsAsync(guess);
-        if (!wordExists)
-        {
-            throw new InvalidOperationException($"Word '{guess}' is not in the dictionary");
-        }
+        // Validate word format first
+        if (!_gameEngine.IsValidWord(guess))
+            throw new InvalidOperationException("Invalid word format");
 
+        // Make the guess (game engine doesn't check dictionary)
         var result = _gameEngine.MakeGuess(CurrentGame, guess);
         
         // Update database

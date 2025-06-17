@@ -85,9 +85,12 @@ public partial class GamePage : UserControl
         _viewModel.AddLetterCommand.Execute(letter);
     }
 
-    private void OnVirtualKeyboardEnterPressed()
+    private async void OnVirtualKeyboardEnterPressed()
     {
-        _viewModel.SubmitGuessCommand.Execute(null);
+        if (_viewModel.SubmitGuessCommand.CanExecute(null))
+        {
+            await _viewModel.SubmitGuessAsync();
+        }
     }
 
     private void OnVirtualKeyboardBackspacePressed()

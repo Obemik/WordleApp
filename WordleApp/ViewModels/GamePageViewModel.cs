@@ -96,7 +96,7 @@ public class GamePageViewModel : BaseViewModel
     public ICommand RemoveLetterCommand { get; }
     public ICommand NewGameCommand { get; }
 
-    private async Task SubmitGuessAsync()
+    public async Task SubmitGuessAsync()
     {
         try
         {

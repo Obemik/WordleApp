@@ -63,11 +63,37 @@ public partial class SupabaseRepository
     public async Task<bool> WordExistsAsync(string word)
     {
         await EnsureInitializedAsync();
-        var result = await CloudDatabase!.SupabaseClient
-            .From<WordDbModel>()
-            .Where(w => w.Word == word.ToUpper() && w.IsActive == true)
-            .Get();
-        
-        return result?.Models?.Count > 0;
+        try
+        {
+            var upperWord = word.ToUpper();
+            var result = await CloudDatabase!.SupabaseClient
+                .From<WordDbModel>()
+                .Select("*")
+                .Where(w => w.Word == upperWord)
+                .Get();
+            
+            return result?.Models != null && result.Models.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            // Log the exception for debugging
+            Console.WriteLine($"Error in WordExistsAsync: {ex.Message}");
+            return false;
+        }
+    }
+    
+    // Альтернативний метод для отримання всіх слів і перевірки локально
+    public async Task<bool> CheckWordInDictionary(string word)
+    {
+        await EnsureInitializedAsync();
+        try
+        {
+            var allWords = await GetAllWordsAsync();
+            return allWords.Any(w => w.Word.Equals(word.ToUpper(), StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

@@ -46,7 +46,14 @@ public partial class App : Application
             var repository = sp.GetRequiredService<SupabaseRepository>();
             return new AuthenticationService(repository);
         });
-        services.AddSingleton<GameService>();
+        services.AddSingleton<GameService>(sp =>
+        {
+            var repository = sp.GetRequiredService<SupabaseRepository>();
+            var gameEngine = sp.GetRequiredService<GameEngineService>();
+            var authService = sp.GetRequiredService<AuthenticationService>();
+            var wordValidationService = sp.GetRequiredService<WordValidationService>();
+            return new GameService(repository, gameEngine, authService, wordValidationService);
+        });
         services.AddSingleton<WordValidationService>();
         
         // Register ViewModels
