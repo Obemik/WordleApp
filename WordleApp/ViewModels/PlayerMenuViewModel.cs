@@ -60,12 +60,14 @@ public class PlayerMenuViewModel : BaseViewModel
     public ICommand NewGameCommand { get; }
     public ICommand ContinueGameCommand { get; }
     public ICommand LogoutCommand { get; }
-
+    
     private async Task StartNewGameAsync()
     {
         try
         {
+            // Завжди створюємо нову гру, навіть якщо є активна
             await _gameService.StartNewGameAsync();
+            HasActiveGame = true; // Оновлюємо стан
             // Navigation will be handled in the code-behind via NavigationService
         }
         catch (Exception ex)

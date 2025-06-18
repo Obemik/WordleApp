@@ -190,8 +190,12 @@ public class GamePageViewModel : BaseViewModel
         try
         {
             IsLoading = true;
-            await _gameService.StartNewGameAsync();
+        
+            // Спочатку очищаємо все поле
             ResetGame();
+            // Потім створюємо нову гру
+            await _gameService.StartNewGameAsync();
+        
             GameStatus = "Нова гра почалась! Почніть відгадувати!";
         }
         catch (Exception ex)
@@ -323,8 +327,16 @@ public class GamePageViewModel : BaseViewModel
         CurrentGuess = string.Empty;
         CurrentAttempt = 0;
         IsGameOver = false;
-        
+    
         InitializeGameGrid();
         InitializeVirtualKeyboard();
+    
+        // Оновлюємо візуальне відображення сітки
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            OnPropertyChanged(nameof(GameGrid));
+            OnPropertyChanged(nameof(VirtualKeyboard));
+        });
     }
 }
+
