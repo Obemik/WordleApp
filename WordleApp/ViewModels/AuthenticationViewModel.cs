@@ -18,6 +18,8 @@ public class AuthenticationViewModel : INotifyPropertyChanged
     private string _errorMessage = string.Empty;
     private bool _isLoginMode = true;
     private bool _isLoading = false;
+    private bool _isLoginSuccessful = false;
+    private bool _isRegistrationSuccessful = false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -93,6 +95,26 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsLoginSuccessful
+    {
+        get => _isLoginSuccessful;
+        set
+        {
+            _isLoginSuccessful = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsRegistrationSuccessful
+    {
+        get => _isRegistrationSuccessful;
+        set
+        {
+            _isRegistrationSuccessful = value;
+            OnPropertyChanged();
+        }
+    }
+
     public string ModeText => IsLoginMode ? "Увійти" : "Зареєструватися";
     public string SwitchModeText => IsLoginMode ? "Немає акаунту? Зареєструватися" : "Вже є акаунт? Увійти";
 
@@ -106,12 +128,15 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         {
             IsLoading = true;
             ErrorMessage = string.Empty;
+            IsLoginSuccessful = false;
 
             await _authService.LoginAsync(Email, Password);
+            IsLoginSuccessful = true;
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Помилка входу: {ex.Message}";
+            IsLoginSuccessful = false;
             _logger?.LogError(ex, "Login failed for user {Email}", Email);
         }
         finally
@@ -126,12 +151,14 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         {
             IsLoading = true;
             ErrorMessage = string.Empty;
+            IsRegistrationSuccessful = false;
 
             await _authService.RegisterAsync(Email, Password, Username);
             
             if (_authService.IsRegisteredSuccessfully)
             {
-                ErrorMessage = "Реєстрація успішна! Тепер увійдіть в систему.";
+                ErrorMessage = string.Empty; // Clear any error messages
+                IsRegistrationSuccessful = true;
                 IsLoginMode = true;
                 ClearFields();
             }
@@ -139,6 +166,7 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             ErrorMessage = $"Помилка реєстрації: {ex.Message}";
+            IsRegistrationSuccessful = false;
             _logger?.LogError(ex, "Registration failed for user {Username}", Username);
         }
         finally
@@ -151,6 +179,8 @@ public class AuthenticationViewModel : INotifyPropertyChanged
     {
         IsLoginMode = !IsLoginMode;
         ErrorMessage = string.Empty;
+        IsLoginSuccessful = false;
+        IsRegistrationSuccessful = false;
         ClearFields();
     }
 
@@ -159,6 +189,11 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         Email = string.Empty;
         Password = string.Empty;
         Username = string.Empty;
+    }
+    
+    public void ClearPassword()
+    {
+        Password = string.Empty;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

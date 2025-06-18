@@ -13,6 +13,7 @@ public class PlayerMenuViewModel : BaseViewModel
     private readonly GameService _gameService;
 
     private string _welcomeMessage = string.Empty;
+    private bool _hasActiveGame = false;
 
     public PlayerMenuViewModel(AuthenticationService authService, NavigationService navigationService,
         GameService gameService)
@@ -22,7 +23,7 @@ public class PlayerMenuViewModel : BaseViewModel
         _gameService = gameService;
 
         NewGameCommand = new AsyncRelayCommand(StartNewGameAsync);
-        ContinueGameCommand = new AsyncRelayCommand(ContinueGameAsync);
+        ContinueGameCommand = new AsyncRelayCommand(ContinueGameAsync, CanContinueGame);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);
 
         // Subscribe to changes in CurrentUser
@@ -35,12 +36,25 @@ public class PlayerMenuViewModel : BaseViewModel
         };
 
         LoadWelcomeMessage();
+        CheckActiveGame();
     }
 
     public string WelcomeMessage
     {
         get => _welcomeMessage;
         set => SetProperty(ref _welcomeMessage, value);
+    }
+
+    public bool HasActiveGame
+    {
+        get => _hasActiveGame;
+        set
+        {
+            if (SetProperty(ref _hasActiveGame, value))
+            {
+                ((AsyncRelayCommand)ContinueGameCommand).NotifyCanExecuteChanged();
+            }
+        }
     }
 
     public ICommand NewGameCommand { get; }
@@ -76,6 +90,11 @@ public class PlayerMenuViewModel : BaseViewModel
         }
     }
 
+    private bool CanContinueGame()
+    {
+        return HasActiveGame;
+    }
+
     private async Task LogoutAsync()
     {
         try
@@ -100,6 +119,19 @@ public class PlayerMenuViewModel : BaseViewModel
         {
             var userEmail = _authService.CurrentUserEmail;
             WelcomeMessage = $"Вітаємо, {userEmail}!";
+        }
+    }
+
+    private async void CheckActiveGame()
+    {
+        try
+        {
+            var game = await _gameService.LoadCurrentGameAsync();
+            HasActiveGame = game != null && !game.IsGameOver;
+        }
+        catch
+        {
+            HasActiveGame = false;
         }
     }
 }

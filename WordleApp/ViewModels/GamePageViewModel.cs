@@ -23,6 +23,7 @@ public class GamePageViewModel : BaseViewModel
     private int _maxAttempts = 6;
     private bool _isLoading = false;
 
+    
     public GamePageViewModel(GameService gameService, NavigationService navigationService, WordValidationService wordValidationService)
     {
         _gameService = gameService;
@@ -68,7 +69,13 @@ public class GamePageViewModel : BaseViewModel
     public bool IsGameOver
     {
         get => _isGameOver;
-        set => SetProperty(ref _isGameOver, value);
+        set
+        {
+            if (SetProperty(ref _isGameOver, value))
+            {
+                OnPropertyChanged(nameof(AttemptText)); // Оновлюємо AttemptText при зміні IsGameOver
+            }
+        }
     }
 
     public int CurrentAttempt
@@ -89,7 +96,17 @@ public class GamePageViewModel : BaseViewModel
         set => SetProperty(ref _isLoading, value);
     }
 
-    public string AttemptText => $"Спроба {CurrentAttempt + 1} з {_maxAttempts}";
+    public string AttemptText
+    {
+        get
+        {
+            if (IsGameOver)
+            {
+                return string.Empty; // Не показуємо текст спроби після завершення гри
+            }
+            return $"Спроба {CurrentAttempt + 1} з {_maxAttempts}";
+        }
+    }
 
     public ICommand SubmitGuessCommand { get; }
     public ICommand AddLetterCommand { get; }

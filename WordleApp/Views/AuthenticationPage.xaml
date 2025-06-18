@@ -59,7 +59,8 @@
                     <!-- Switch mode button -->
                     <Button Content="{Binding SwitchModeText}"
                             Command="{Binding SwitchModeCommand}"
-                            Style="{StaticResource MaterialDesignFlatButton}"/>
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Click="OnSwitchModeClick"/>
                 </StackPanel>
             </Border>
         </StackPanel>
