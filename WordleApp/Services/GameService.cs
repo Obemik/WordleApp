@@ -65,12 +65,20 @@ public class GameService : INotifyPropertyChanged
         _currentGameDb = await _repository.GetCurrentGameAsync(_authService.CurrentUserId);
         if (_currentGameDb == null) return null;
 
+        // Перевіряємо, чи гра належить поточному користувачу
+        if (_currentGameDb.UserId != _authService.CurrentUserId)
+        {
+            // Якщо ні - повертаємо null, щоб не завантажувати чужу гру
+            _currentGameDb = null;
+            return null;
+        }
+
         // Deserialize guesses
         var guesses = JsonConvert.DeserializeObject<List<string>>(_currentGameDb.Guesses) ?? new List<string>();
-        
+    
         // Recreate game state
         CurrentGame = _gameEngine.CreateGame(_currentGameDb.TargetWord);
-        
+    
         // Apply previous guesses
         foreach (var guess in guesses)
         {

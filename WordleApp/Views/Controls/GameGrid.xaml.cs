@@ -57,11 +57,20 @@ public partial class GameGrid : UserControl
         if (word.Length != 5 || results.Length != 5) return;
 
         var row = GameRows[rowIndex];
-        
+    
         for (int i = 0; i < 5; i++)
         {
-            row.Letters[i].Letter = word[i].ToString().ToUpper();
-            row.Letters[i].Status = results[i];
+            // Якщо літера пробіл або пуста - очищаємо клітинку
+            if (word[i] == ' ' || string.IsNullOrWhiteSpace(word[i].ToString()))
+            {
+                row.Letters[i].Letter = "";
+                row.Letters[i].Status = GuessResult.Absent;
+            }
+            else
+            {
+                row.Letters[i].Letter = word[i].ToString().ToUpper();
+                row.Letters[i].Status = results[i];
+            }
         }
     }
 

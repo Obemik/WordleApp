@@ -42,6 +42,11 @@ public class GamePageViewModel : BaseViewModel
         InitializeVirtualKeyboard();
         _ = LoadOrStartNewGame();
     }
+    
+    public async Task InitializeNewGameAsync()
+    {
+        await StartNewGameAsync();
+    }
 
     public ObservableCollection<GuessModel> GameGrid { get; }
     public ObservableCollection<KeyModel> VirtualKeyboard { get; }
@@ -191,12 +196,38 @@ public class GamePageViewModel : BaseViewModel
         {
             IsLoading = true;
         
-            // Спочатку очищаємо все поле
-            ResetGame();
-            // Потім створюємо нову гру
+            // Очищаємо все поле повністю
+            CurrentGuess = string.Empty;
+            CurrentAttempt = 0;
+            IsGameOver = false;
+            GameStatus = string.Empty;
+        
+            // Очищаємо GameGrid
+            foreach (var row in GameGrid)
+            {
+                foreach (var letter in row.Letters)
+                {
+                    letter.Letter = "";
+                    letter.Status = GuessResult.Absent;
+                }
+            }
+        
+            // Очищаємо VirtualKeyboard
+            foreach (var key in VirtualKeyboard)
+            {
+                key.Status = GuessResult.Absent;
+            }
+        
+            // Створюємо нову гру в сервісі
             await _gameService.StartNewGameAsync();
         
             GameStatus = "Нова гра почалась! Почніть відгадувати!";
+        
+            // Форсуємо оновлення всіх властивостей
+            OnPropertyChanged(nameof(GameGrid));
+            OnPropertyChanged(nameof(CurrentAttempt));
+            OnPropertyChanged(nameof(CurrentGuess));
+            OnPropertyChanged(nameof(AttemptText));
         }
         catch (Exception ex)
         {
@@ -277,19 +308,30 @@ public class GamePageViewModel : BaseViewModel
         {
             IsLoading = true;
             var game = await _gameService.LoadCurrentGameAsync();
-            
-            if (game != null)
+        
+            if (game != null && !game.IsGameOver)
             {
-                // Restore game state
+                // Спочатку очищаємо все
+                ResetGame();
+            
+                // Відновлюємо стан гри
                 _targetWord = game.TargetWord;
                 CurrentAttempt = game.Attempts;
                 IsGameOver = game.IsGameOver;
-                
-                // Restore previous guesses
-                for (int i = 0; i < game.Guesses.Count; i++)
+            
+                // Відновлюємо попередні спроби
+                for (int i = 0; i < game.Guesses.Count && i < GameGrid.Count; i++)
                 {
                     var guess = game.Guesses[i];
-                    UpdateGameGrid(guess.Word, guess.Results);
+                
+                    // Оновлюємо літери в рядку
+                    for (int j = 0; j < guess.Word.Length && j < GameGrid[i].Letters.Count; j++)
+                    {
+                        GameGrid[i].Letters[j].Letter = guess.Word[j].ToString();
+                        GameGrid[i].Letters[j].Status = guess.Results[j];
+                    }
+                
+                    // Оновлюємо клавіатуру
                     UpdateVirtualKeyboard(guess.Word, guess.Results);
                 }
 
@@ -327,16 +369,24 @@ public class GamePageViewModel : BaseViewModel
         CurrentGuess = string.Empty;
         CurrentAttempt = 0;
         IsGameOver = false;
+        _targetWord = string.Empty;
+        GameStatus = string.Empty;
     
-        InitializeGameGrid();
-        InitializeVirtualKeyboard();
-    
-        // Оновлюємо візуальне відображення сітки
-        Application.Current.Dispatcher.Invoke(() =>
+        // Очищаємо кожну літеру в кожній спробі
+        foreach (var guessRow in GameGrid)
         {
-            OnPropertyChanged(nameof(GameGrid));
-            OnPropertyChanged(nameof(VirtualKeyboard));
-        });
+            foreach (var letter in guessRow.Letters)
+            {
+                letter.Letter = string.Empty;
+                letter.Status = GuessResult.Absent;
+            }
+        }
+    
+        // Скидаємо кольори клавіатури
+        foreach (var key in VirtualKeyboard)
+        {
+            key.Status = GuessResult.Absent;
+        }
     }
 }
 

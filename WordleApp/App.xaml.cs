@@ -12,6 +12,7 @@ namespace WordleApp;
 public partial class App : Application
 {
     private IServiceProvider? _serviceProvider;
+    public IServiceProvider Services => _serviceProvider!;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -105,4 +106,5 @@ public partial class App : Application
             disposable.Dispose();
         }
     }
+    
 }
