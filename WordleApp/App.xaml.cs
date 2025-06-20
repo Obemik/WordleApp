@@ -43,12 +43,19 @@ public partial class App : Application
         
         // Register application services
         services.AddSingleton<WordValidationService>();
-        
-        // Register AuthenticationService first as GameService depends on it
-        services.AddSingleton<AuthenticationService>();
-        
-        // Register GameService after AuthenticationService
-        services.AddSingleton<GameService>();
+        services.AddSingleton<GameService>(sp =>
+        {
+            var repository = sp.GetRequiredService<SupabaseRepository>();
+            var gameEngine = sp.GetRequiredService<GameEngineService>();
+            var authService = sp.GetRequiredService<AuthenticationService>();
+            var wordValidationService = sp.GetRequiredService<WordValidationService>();
+            return new GameService(repository, gameEngine, authService, wordValidationService);
+        });
+        services.AddSingleton<AuthenticationService>(sp =>
+        {
+            var repository = sp.GetRequiredService<SupabaseRepository>();
+            return new AuthenticationService(repository);
+        });
         
         // Register ViewModels
         services.AddSingleton<AuthenticationViewModel>();
@@ -109,4 +116,3 @@ public partial class App : Application
     }
     
 }
-
