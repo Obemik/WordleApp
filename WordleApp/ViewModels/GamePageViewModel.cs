@@ -11,6 +11,7 @@ namespace WordleApp.ViewModels;
 
 public class GamePageViewModel : BaseViewModel
 {
+    private bool _isInitializing = false;
     private readonly GameService _gameService;
     private readonly NavigationService _navigationService;
     private readonly WordValidationService _wordValidationService;
@@ -32,22 +33,31 @@ public class GamePageViewModel : BaseViewModel
         _gameService = gameService;
         _navigationService = navigationService;
         _wordValidationService = wordValidationService;
-        
-        Console.WriteLine($"GamePageViewModel created for user: {_authService.CurrentUserId}");
-        
+    
+        Console.WriteLine($"[GamePageViewModel] Created for user: {_authService.CurrentUserId}");
+    
         GameGrid = new ObservableCollection<GuessModel>();
         VirtualKeyboard = new ObservableCollection<KeyModel>();
-        
+    
         SubmitGuessCommand = new AsyncRelayCommand(SubmitGuessAsync, CanSubmitGuess);
         AddLetterCommand = new RelayCommand<string>(AddLetter);
         RemoveLetterCommand = new RelayCommand(RemoveLetter, CanRemoveLetter);
         NewGameCommand = new AsyncRelayCommand(StartNewGameAsync);
-        
+    
         InitializeGameGrid();
         InitializeVirtualKeyboard();
-        _ = LoadOrStartNewGame();
+        
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100); 
+            await LoadOrStartNewGame();
+        });
     }
 
+    public async Task InitializeAsync()
+    {
+        await LoadOrStartNewGame();
+    }
     
     public async Task InitializeNewGameAsync()
     {
@@ -197,37 +207,21 @@ public class GamePageViewModel : BaseViewModel
 
     private async Task StartNewGameAsync()
     {
+        if (_isInitializing || IsLoading) return;
+        
         try
         {
             IsLoading = true;
-        
+            
+            ResetGame();
             CurrentGuess = string.Empty;
             CurrentAttempt = 0;
             IsGameOver = false;
             GameStatus = string.Empty;
-        
-            foreach (var row in GameGrid)
-            {
-                foreach (var letter in row.Letters)
-                {
-                    letter.Letter = "";
-                    letter.Status = GuessResult.Absent;
-                }
-            }
-        
-            foreach (var key in VirtualKeyboard)
-            {
-                key.Status = GuessResult.Absent;
-            }
-        
+            
             await _gameService.StartNewGameAsync();
-        
+            
             GameStatus = "Нова гра почалась! Почніть відгадувати!";
-        
-            OnPropertyChanged(nameof(GameGrid));
-            OnPropertyChanged(nameof(CurrentAttempt));
-            OnPropertyChanged(nameof(CurrentGuess));
-            OnPropertyChanged(nameof(AttemptText));
         }
         catch (Exception ex)
         {
@@ -304,66 +298,61 @@ public class GamePageViewModel : BaseViewModel
 
     private async Task LoadOrStartNewGame()
     {
+        if (_isInitializing) return;
+    
         try
         {
+            _isInitializing = true;
             IsLoading = true;
-            
+        
             var currentUserId = _authService.CurrentUserId;
-            Console.WriteLine($"LoadOrStartNewGame for user: {currentUserId}");
-            
+            Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Loading for user: {currentUserId}");
+        
+            // Очищаємо всі дані перед завантаженням
+            ResetGame();
+        
             var game = await _gameService.LoadCurrentGameAsync();
-            
+        
             if (game != null && !game.IsGameOver)
             {
-                Console.WriteLine($"Loaded game with word: {game.TargetWord}, attempts: {game.Attempts}");
-                
-                ResetGame();
-                
+                Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Found active game");
+            
                 // Restore game state
                 CurrentAttempt = game.Attempts;
                 IsGameOver = game.IsGameOver;
-                
+            
+                // Відновлюємо попередні спроби
                 for (int i = 0; i < game.Guesses.Count && i < GameGrid.Count; i++)
                 {
                     var guess = game.Guesses[i];
-                    
+                
                     for (int j = 0; j < guess.Word.Length && j < GameGrid[i].Letters.Count; j++)
                     {
                         GameGrid[i].Letters[j].Letter = guess.Word[j].ToString();
                         GameGrid[i].Letters[j].Status = guess.Results[j];
                     }
-                    
+                
                     UpdateVirtualKeyboard(guess.Word, guess.Results);
                 }
 
-                if (game.IsWon)
-                {
-                    GameStatus = $"Ви відгадали слово за {game.Attempts} спроб!";
-                }
-                else if (game.IsLost)
-                {
-                    GameStatus = $"Слово було: {game.TargetWord}";
-                }
-                else
-                {
-                    GameStatus = "Продовжуйте відгадувати!";
-                }
+                GameStatus = "Продовжуйте відгадувати!";
             }
             else
             {
-                Console.WriteLine("No active game, starting new one");
-                await StartNewGameAsync();
+                Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] No active game, starting new one");
+                await _gameService.StartNewGameAsync();
+                GameStatus = "Нова гра почалась! Почніть відгадувати!";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in LoadOrStartNewGame: {ex.Message}");
+            Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Error: {ex.Message}");
             GameStatus = $"Помилка завантаження гри: {ex.Message}";
-            await StartNewGameAsync();
         }
         finally
         {
             IsLoading = false;
+            _isInitializing = false;
         }
     }
 

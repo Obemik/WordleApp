@@ -7,7 +7,7 @@ namespace SupabaseService.Models;
 public class UserDbModel : BaseModel
 {
     [PrimaryKey("id")]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty; 
     
     [Column("username")]
     public string Username { get; set; } = string.Empty;

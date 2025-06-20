@@ -21,14 +21,11 @@ public partial class PlayerMenuPage : UserControl
     {
         try
         {
-            // Правильний спосіб отримати App
             var app = (App)Application.Current;
-            var gamePageViewModel = app.Services.GetRequiredService<GamePageViewModel>();
+            var gameService = app.Services.GetRequiredService<GameService>();
         
-            // Ініціалізуємо нову гру
-            await gamePageViewModel.InitializeNewGameAsync();
+            gameService.ClearCache();
         
-            // Переходимо на сторінку гри
             _navigationService.NavigateTo<GamePage, GamePageViewModel>();
         }
         catch (Exception ex)

@@ -30,61 +30,40 @@ public partial class MainWindow : Window
     }
     private async void OnAuthServicePropertyChanged(object sender, PropertyChangedEventArgs e)
     {
+        Console.WriteLine($"[MainWindow] Property changed: {e.PropertyName}, IsLoggedIn: {_authService.IsLoggedIn}");
         if (e.PropertyName == nameof(AuthenticationService.IsLoggedIn))
         {
-            // Отримуємо GameService і очищаємо кеш
-            var gameService = _serviceProvider.GetRequiredService<GameService>();
-            gameService.ClearCache();
-        
-            if (_authService.IsLoggedIn)
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
             {
-                // Check user role
-                var userId = _authService.CurrentUserId;
-                if (!string.IsNullOrEmpty(userId))
+                var gameService = _serviceProvider.GetRequiredService<GameService>();
+                gameService.ClearCache();
+        
+                if (_authService.IsLoggedIn)
                 {
-                    var user = await _repository.GetUserByIdAsync(userId);
-                    if (user != null && user.Role == "Admin")
+                    // Check user role
+                    var userId = _authService.CurrentUserId;
+                    if (!string.IsNullOrEmpty(userId))
                     {
-                        _navigationService.NavigateTo<AdminPanelPage, AdminPanelViewModel>();
+                        var user = await _repository.GetUserByIdAsync(userId);
+                        if (user != null && user.Role == "Admin")
+                        {
+                            _navigationService.NavigateTo<AdminPanelPage, AdminPanelViewModel>();
+                        }
+                        else
+                        {
+                            _navigationService.NavigateTo<PlayerMenuPage, PlayerMenuViewModel>();
+                        }
                     }
                     else
                     {
                         _navigationService.NavigateTo<PlayerMenuPage, PlayerMenuViewModel>();
                     }
                 }
-            }
-            else
-            {
-                _navigationService.NavigateTo<AuthenticationPage, AuthenticationViewModel>();
-            }
-        }
-        if (e.PropertyName == nameof(AuthenticationService.IsLoggedIn) && _authService.IsLoggedIn)
-        {
-            // Check user role
-            var userId = _authService.CurrentUserId;
-            if (!string.IsNullOrEmpty(userId))
-            {
-                var user = await _repository.GetUserByIdAsync(userId);
-                if (user != null && user.Role == "Admin")
-                {
-                    _navigationService.NavigateTo<AdminPanelPage, AdminPanelViewModel>();
-                }
                 else
                 {
-                    _navigationService.NavigateTo<PlayerMenuPage, PlayerMenuViewModel>();
+                    _navigationService.NavigateTo<AuthenticationPage, AuthenticationViewModel>();
                 }
-            }
-        }
-        
-        if (e.PropertyName == nameof(AuthenticationService.IsLoggedIn) && !_authService.IsLoggedIn)
-        {
-            _navigationService.NavigateTo<AuthenticationPage, AuthenticationViewModel>();
-        }
-        
-        if (e.PropertyName == nameof(AuthenticationService.IsRegisteredSuccessfully) && _authService.IsRegisteredSuccessfully)
-        {
-            _authService.IsRegisteredSuccessfully = false;
-            _navigationService.NavigateTo<AuthenticationPage, AuthenticationViewModel>();
+            });
         }
     }
 

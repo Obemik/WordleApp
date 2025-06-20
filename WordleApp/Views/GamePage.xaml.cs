@@ -27,12 +27,13 @@ public partial class GamePage : UserControl
         // Subscribe to ViewModel property changes
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     
-        // Підписуємося на зміни в GameGrid
         _viewModel.GameGrid.CollectionChanged += GameGrid_CollectionChanged;
     
         // Enable keyboard input
         Focusable = true;
         Focus();
+    
+        Loaded += async (s, e) => await _viewModel.InitializeAsync();
     }
     
     private void GameGrid_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

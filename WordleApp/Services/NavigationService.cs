@@ -18,9 +18,12 @@ public class NavigationService
         where TView : UserControl
         where TViewModel : class
     {
+        Console.WriteLine($"[NavigationService] Navigating to {typeof(TView).Name}");
+        
         var view = _serviceProvider.GetRequiredService<TView>();
-        var viewModel = _serviceProvider.GetRequiredService<TViewModel>();
-        view.DataContext = viewModel;
+        
+        Console.WriteLine($"[NavigationService] View DataContext: {view.DataContext?.GetType().Name}");
+        
         OnNavigate?.Invoke(view);
     }
 }

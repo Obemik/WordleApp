@@ -8,7 +8,6 @@ namespace WordleApp.Services;
 public class AuthenticationService : INotifyPropertyChanged
 {
     private readonly SupabaseRepository _repository;
-    private readonly GameService _gameService;
     private bool _isLoggedIn;
     private bool _isRegisteredSuccessfully = false;
     private bool _isInitialized = false;
@@ -17,14 +16,10 @@ public class AuthenticationService : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? UserChanged; 
     
-    public AuthenticationService(SupabaseRepository repository, GameService gameService)
+    public AuthenticationService(SupabaseRepository repository)
     {
         _repository = repository;
-        _gameService = gameService;
-    
-        // Initialize properties based on repository state
-        IsLoggedIn = _repository.IsLoggedIn;
-        CurrentUser = _repository.GetCurrentUser();
+        InitializeAsync();
     }
     
     private async void InitializeAsync()
@@ -84,13 +79,16 @@ public class AuthenticationService : INotifyPropertyChanged
     public string? CurrentUsername => _currentUser?.Username;
     public string? CurrentUserRole => _currentUser?.Role;
 
-    // Login method that updates IsLoggedIn
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
         try
         {
+            Console.WriteLine($"[AuthenticationService.LoginAsync] Attempting login for: {email}");
+        
             await _repository.Login(email, password);
             IsLoggedIn = _repository.IsLoggedIn;
+        
+            Console.WriteLine($"[AuthenticationService.LoginAsync] Login result: {IsLoggedIn}");
         
             if (IsLoggedIn)
             {
@@ -102,6 +100,7 @@ public class AuthenticationService : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[AuthenticationService.LoginAsync] Error: {ex.Message}");
             return new AuthResult { Success = false, Message = ex.Message };
         }
     }

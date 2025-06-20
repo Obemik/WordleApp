@@ -65,9 +65,8 @@ public class PlayerMenuViewModel : BaseViewModel
     {
         try
         {
-            // Завжди створюємо нову гру, навіть якщо є активна
             await _gameService.StartNewGameAsync();
-            HasActiveGame = true; // Оновлюємо стан
+            HasActiveGame = true; 
             // Navigation will be handled in the code-behind via NavigationService
         }
         catch (Exception ex)
@@ -128,20 +127,26 @@ public class PlayerMenuViewModel : BaseViewModel
     {
         try
         {
+            var currentUserId = _authService.CurrentUserId;
+            Console.WriteLine($"[PlayerMenuViewModel.CheckActiveGame] Checking for user: {currentUserId}");
+        
             _gameService.ClearCache();
         
-            if (_authService.CurrentUserId != null)
+            if (!string.IsNullOrEmpty(currentUserId))
             {
                 var game = await _gameService.LoadCurrentGameAsync();
                 HasActiveGame = game != null && !game.IsGameOver;
+            
+                Console.WriteLine($"[PlayerMenuViewModel.CheckActiveGame] HasActiveGame: {HasActiveGame}");
             }
             else
             {
                 HasActiveGame = false;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[PlayerMenuViewModel.CheckActiveGame] Error: {ex.Message}");
             HasActiveGame = false;
         }
     }

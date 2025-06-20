@@ -1,4 +1,5 @@
 using Supabase.Gotrue;
+using SupabaseService.Models;
 
 namespace SupabaseService.Repository;
 
@@ -42,5 +43,10 @@ public partial class SupabaseRepository
     public string? GetCurrentUserEmail()
     {
         return _isInitialized ? CloudDatabase?.SupabaseClient.Auth.CurrentUser?.Email : null;
+    }
+    
+    public UserDbModel? GetCurrentUser()
+    {
+        return null;
     }
 }

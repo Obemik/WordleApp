@@ -8,6 +8,26 @@ public partial class SupabaseRepository
     public async Task<GameDbModel> CreateGameAsync(string userId, string targetWord)
     {
         await EnsureInitializedAsync();
+        
+        var activeGames = await CloudDatabase!.SupabaseClient
+            .From<GameDbModel>()
+            .Where(g => g.UserId == userId)
+            .Where(g => g.GameStatus == "InProgress")
+            .Get();
+        
+        foreach (var activeGame in activeGames.Models)
+        {
+            activeGame.GameStatus = "Abandoned";
+            activeGame.CompletedAt = DateTime.UtcNow;
+            
+            await CloudDatabase!.SupabaseClient
+                .From<GameDbModel>()
+                .Where(g => g.Id == activeGame.Id)
+                .Set(g => g.GameStatus, "Abandoned")
+                .Set(g => g.CompletedAt, DateTime.UtcNow)
+                .Update();
+        }
+        
         var newGame = new GameDbModel
         {
             UserId = userId,
@@ -32,17 +52,32 @@ public partial class SupabaseRepository
         
         try
         {
+            Console.WriteLine($"[GetCurrentGameAsync] Searching for active game for user: {userId}");
+            
             var result = await CloudDatabase!.SupabaseClient
                 .From<GameDbModel>()
                 .Where(g => g.UserId == userId)
                 .Where(g => g.GameStatus == "InProgress")
+                .Order(g => g.StartedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(1)
                 .Get();
             
-            return result?.Models?.FirstOrDefault();
+            var game = result?.Models?.FirstOrDefault();
+            
+            if (game != null)
+            {
+                Console.WriteLine($"[GetCurrentGameAsync] Found game ID: {game.Id}, Word: {game.TargetWord}, Status: {game.GameStatus}");
+            }
+            else
+            {
+                Console.WriteLine($"[GetCurrentGameAsync] No active game found for user: {userId}");
+            }
+            
+            return game;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error getting current game: {ex.Message}");
+            Console.WriteLine($"[GetCurrentGameAsync] Error: {ex.Message}");
             return null;
         }
     }
@@ -50,6 +85,8 @@ public partial class SupabaseRepository
     public async Task<GameDbModel> UpdateGameAsync(GameDbModel game)
     {
         await EnsureInitializedAsync();
+        
+        Console.WriteLine($"[UpdateGameAsync] Updating game ID: {game.Id}, Status: {game.GameStatus}");
         
         var result = await CloudDatabase!.SupabaseClient
             .From<GameDbModel>()
@@ -62,18 +99,5 @@ public partial class SupabaseRepository
             .Update();
         
         return result.Models.First();
-    }
-    
-    public async Task<List<GameDbModel>> GetUserGamesAsync(string userId, int limit = 20)
-    {
-        await EnsureInitializedAsync();
-        var result = await CloudDatabase!.SupabaseClient
-            .From<GameDbModel>()
-            .Where(g => g.UserId == userId)
-            .Order(g => g.StartedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-            .Limit(limit)
-            .Get();
-        
-        return result?.Models ?? new List<GameDbModel>();
     }
 }

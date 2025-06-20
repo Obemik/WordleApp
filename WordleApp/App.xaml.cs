@@ -26,86 +26,88 @@ public partial class App : Application
     }
 
     private void ConfigureServices(IServiceCollection services)
+{
+    // Configure Logging
+    services.AddLogging();
+
+    // Register SupabaseService layer
+    services.AddSingleton<SupabaseRepository>();
+    
+    // Register WordleGameEngine services
+    services.AddSingleton<GameEngineService>();
+    services.AddSingleton<GuessValidatorService>();
+    services.AddSingleton<WordGeneratorService>();
+    
+    // Register NavigationService
+    services.AddSingleton<NavigationService>();
+    
+    // Register WordValidationService
+    services.AddSingleton<WordValidationService>();
+    
+    // Register AuthenticationService
+    services.AddSingleton<AuthenticationService>(sp =>
     {
-        // Configure Logging
-        services.AddLogging();
-
-        // Register SupabaseService layer
-        services.AddSingleton<SupabaseRepository>();
+        var repository = sp.GetRequiredService<SupabaseRepository>();
+        return new AuthenticationService(repository);
+    });
+    
+    // Register GameService
+    services.AddSingleton<GameService>(sp =>
+    {
+        var repository = sp.GetRequiredService<SupabaseRepository>();
+        var gameEngine = sp.GetRequiredService<GameEngineService>();
+        var authService = sp.GetRequiredService<AuthenticationService>();
+        var wordValidationService = sp.GetRequiredService<WordValidationService>();
+        return new GameService(repository, gameEngine, authService, wordValidationService);
+    });
+    
+    // Register ViewModels as Transient
+    services.AddTransient<AuthenticationViewModel>();
+    services.AddTransient<PlayerMenuViewModel>();
+    services.AddTransient<GamePageViewModel>();
+    services.AddTransient<AdminPanelViewModel>();
+    
+    // Register Views as Transient but with proper factory methods
+    services.AddTransient<AuthenticationPage>(sp =>
+    {
+        var navigationService = sp.GetRequiredService<NavigationService>();
+        var viewModel = sp.GetRequiredService<AuthenticationViewModel>();
         
-        // Register WordleGameEngine services
-        services.AddSingleton<GameEngineService>();
-        services.AddSingleton<GuessValidatorService>();
-        services.AddSingleton<WordGeneratorService>();
+        Console.WriteLine($"[DI] Creating AuthenticationPage with ViewModel hash: {viewModel.GetHashCode()}");
         
-        // Register NavigationService
-        services.AddSingleton<NavigationService>();
-        
-        // Register application services
-        services.AddSingleton<WordValidationService>();
-        services.AddSingleton<GameService>(sp =>
-        {
-            var repository = sp.GetRequiredService<SupabaseRepository>();
-            var gameEngine = sp.GetRequiredService<GameEngineService>();
-            var authService = sp.GetRequiredService<AuthenticationService>();
-            var wordValidationService = sp.GetRequiredService<WordValidationService>();
-            return new GameService(repository, gameEngine, authService, wordValidationService);
-        });
-        services.AddSingleton<AuthenticationService>(sp =>
-        {
-            var repository = sp.GetRequiredService<SupabaseRepository>();
-            return new AuthenticationService(repository);
-        });
-        
-        // Register ViewModels
-        services.AddSingleton<AuthenticationViewModel>();
-        services.AddSingleton<PlayerMenuViewModel>();
-        services.AddSingleton<GamePageViewModel>(sp =>
-        {
-            var gameService = sp.GetRequiredService<GameService>();
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var wordValidationService = sp.GetRequiredService<WordValidationService>();
-            var authService = sp.GetRequiredService<AuthenticationService>();
-            return new GamePageViewModel(gameService, navigationService, wordValidationService, authService);
-        });
-
-        services.AddSingleton<AdminPanelViewModel>();
-        
-        // Register Views
-        services.AddSingleton<AuthenticationPage>(sp =>
-        {
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var viewModel = sp.GetRequiredService<AuthenticationViewModel>();
-            return new AuthenticationPage(navigationService, viewModel);
-        });
-        services.AddSingleton<PlayerMenuPage>(sp =>
-        {
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var viewModel = sp.GetRequiredService<PlayerMenuViewModel>();
-            return new PlayerMenuPage(navigationService, viewModel);
-        });
-        services.AddSingleton<GamePage>(sp =>
-        {
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var viewModel = sp.GetRequiredService<GamePageViewModel>();
-            return new GamePage(navigationService, viewModel);
-        });
-        services.AddSingleton<AdminPanelPage>(sp =>
-        {
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var viewModel = sp.GetRequiredService<AdminPanelViewModel>();
-            return new AdminPanelPage(navigationService, viewModel);
-        });
-        
-        // Register MainWindow
-        services.AddSingleton<MainWindow>(sp =>
-        {
-            var navigationService = sp.GetRequiredService<NavigationService>();
-            var authService = sp.GetRequiredService<AuthenticationService>();
-            var repository = sp.GetRequiredService<SupabaseRepository>();
-            return new MainWindow(navigationService, authService, repository, sp); // Додаємо sp
-        });
-    }
+        return new AuthenticationPage(navigationService, viewModel);
+    });
+    
+    services.AddTransient<PlayerMenuPage>(sp =>
+    {
+        var navigationService = sp.GetRequiredService<NavigationService>();
+        var viewModel = sp.GetRequiredService<PlayerMenuViewModel>();
+        return new PlayerMenuPage(navigationService, viewModel);
+    });
+    
+    services.AddTransient<GamePage>(sp =>
+    {
+        var navigationService = sp.GetRequiredService<NavigationService>();
+        var viewModel = sp.GetRequiredService<GamePageViewModel>();
+        return new GamePage(navigationService, viewModel);
+    });
+    
+    services.AddTransient<AdminPanelPage>(sp =>
+    {
+        var navigationService = sp.GetRequiredService<NavigationService>();
+        var viewModel = sp.GetRequiredService<AdminPanelViewModel>();
+        return new AdminPanelPage(navigationService, viewModel);
+    });
+    
+    // Register MainWindow
+    services.AddSingleton<MainWindow>(sp =>
+    {
+        var navigationService = sp.GetRequiredService<NavigationService>();
+        var authService = sp.GetRequiredService<AuthenticationService>();
+        var repository = sp.GetRequiredService<SupabaseRepository>();
+        return new MainWindow(navigationService, authService, repository, sp);
+    });
+}
 
     private void OnExit(object sender, ExitEventArgs e)
     {

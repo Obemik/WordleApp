@@ -28,8 +28,8 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         _authService = authService;
         _logger = logger;
 
-        LoginCommand = new AsyncRelayCommand(OnLoginAsync);
-        RegisterCommand = new AsyncRelayCommand(OnRegisterAsync);
+        LoginCommand = new AsyncRelayCommand(OnLoginAsync, CanLogin);
+        RegisterCommand = new AsyncRelayCommand(OnRegisterAsync, CanRegister);
         SwitchModeCommand = new RelayCommand(SwitchMode);
     }
 
@@ -38,8 +38,16 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         get => _email;
         set
         {
-            _email = value;
-            OnPropertyChanged();
+            if (_email != value)
+            {
+                _email = value;
+                OnPropertyChanged();
+                Console.WriteLine($"[AuthenticationViewModel] Email set to: '{_email}'");
+                
+                // Оновлюємо стан команд
+                ((AsyncRelayCommand)LoginCommand).NotifyCanExecuteChanged();
+                ((AsyncRelayCommand)RegisterCommand).NotifyCanExecuteChanged();
+            }
         }
     }
 
@@ -48,8 +56,15 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         get => _password;
         set
         {
-            _password = value;
-            OnPropertyChanged();
+            if (_password != value)
+            {
+                _password = value;
+                OnPropertyChanged();
+                
+                // Оновлюємо стан команд
+                ((AsyncRelayCommand)LoginCommand).NotifyCanExecuteChanged();
+                ((AsyncRelayCommand)RegisterCommand).NotifyCanExecuteChanged();
+            }
         }
     }
 
@@ -130,8 +145,31 @@ public class AuthenticationViewModel : INotifyPropertyChanged
             ErrorMessage = string.Empty;
             IsLoginSuccessful = false;
 
-            await _authService.LoginAsync(Email, Password);
-            IsLoginSuccessful = true;
+            // Діагностика
+            Console.WriteLine($"[AuthenticationViewModel.OnLoginAsync] Attempting login with email: '{Email}', password length: {Password?.Length ?? 0}");
+
+            if (string.IsNullOrWhiteSpace(Email))
+            {
+                ErrorMessage = "Email не може бути порожнім";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Пароль не може бути порожнім";
+                return;
+            }
+
+            var result = await _authService.LoginAsync(Email.Trim(), Password);
+            
+            if (result.Success)
+            {
+                IsLoginSuccessful = true;
+            }
+            else
+            {
+                ErrorMessage = result.Message ?? "Невірний email або пароль";
+            }
         }
         catch (Exception ex)
         {
@@ -153,11 +191,29 @@ public class AuthenticationViewModel : INotifyPropertyChanged
             ErrorMessage = string.Empty;
             IsRegistrationSuccessful = false;
 
-            await _authService.RegisterAsync(Email, Password, Username);
+            if (string.IsNullOrWhiteSpace(Email))
+            {
+                ErrorMessage = "Email не може бути порожнім";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Пароль не може бути порожнім";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Username))
+            {
+                ErrorMessage = "Ім'я користувача не може бути порожнім";
+                return;
+            }
+
+            await _authService.RegisterAsync(Email.Trim(), Password, Username.Trim());
             
             if (_authService.IsRegisteredSuccessfully)
             {
-                ErrorMessage = string.Empty; // Clear any error messages
+                ErrorMessage = string.Empty;
                 IsRegistrationSuccessful = true;
                 IsLoginMode = true;
                 ClearFields();
@@ -173,6 +229,17 @@ public class AuthenticationViewModel : INotifyPropertyChanged
         {
             IsLoading = false;
         }
+    }
+
+    private bool CanLogin()
+    {
+        return !IsLoading && !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password);
+    }
+
+    private bool CanRegister()
+    {
+        return !IsLoading && !string.IsNullOrWhiteSpace(Email) && 
+               !string.IsNullOrWhiteSpace(Password) && !string.IsNullOrWhiteSpace(Username);
     }
 
     private void SwitchMode()

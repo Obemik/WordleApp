@@ -18,6 +18,7 @@ public class GameService : INotifyPropertyChanged
     
     private Game? _currentGame;
     private GameDbModel? _currentGameDb;
+    private bool _isCreatingGame = false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -32,9 +33,12 @@ public class GameService : INotifyPropertyChanged
         _authService.UserChanged += OnUserChanged;
     }
 
-    private void OnUserChanged(object? sender, EventArgs e)
+    public void OnUserChanged(object? sender, EventArgs e)
     {
+        Console.WriteLine("[GameService.OnUserChanged] User changed, clearing all game data");
         ClearCache();
+        CurrentGame = null;
+        _currentGameDb = null;
     }
 
     public Game? CurrentGame
@@ -49,31 +53,45 @@ public class GameService : INotifyPropertyChanged
 
     public async Task<Game> StartNewGameAsync()
     {
-        var currentUserId = _authService.CurrentUserId;
-        if (string.IsNullOrEmpty(currentUserId))
-            throw new InvalidOperationException("User must be logged in to start a game");
-
-        if (_currentGameDb != null && _currentGameDb.GameStatus == "InProgress")
+        if (_isCreatingGame)
         {
-            _currentGameDb.GameStatus = "Abandoned";
-            _currentGameDb.CompletedAt = DateTime.UtcNow;
-            await _repository.UpdateGameAsync(_currentGameDb);
+            Console.WriteLine("[StartNewGameAsync] Already creating game, skipping...");
+            while (_isCreatingGame && _currentGame != null)
+            {
+                await Task.Delay(100);
+            }
+            return _currentGame!;
         }
 
-        // Get random word from database
-        var wordModel = await _repository.GetRandomWordAsync();
-        if (wordModel == null)
-            throw new InvalidOperationException("No words available in the database");
+        try
+        {
+            _isCreatingGame = true;
 
-        // Create new game
-        CurrentGame = _gameEngine.CreateGame(wordModel.Word);
-    
-        // Create new game in database для конкретного користувача
-        _currentGameDb = await _repository.CreateGameAsync(currentUserId, wordModel.Word);
-    
-        Console.WriteLine($"Created new game for user {currentUserId} with word: {wordModel.Word}");
-    
-        return CurrentGame;
+            var currentUserId = _authService.CurrentUserId;
+            if (string.IsNullOrEmpty(currentUserId))
+                throw new InvalidOperationException("User must be logged in to start a game");
+
+            Console.WriteLine($"[StartNewGameAsync] Starting new game for user: {currentUserId}");
+
+            // Get random word from database
+            var wordModel = await _repository.GetRandomWordAsync();
+            if (wordModel == null)
+                throw new InvalidOperationException("No words available in the database");
+
+            // Create new game in database
+            _currentGameDb = await _repository.CreateGameAsync(currentUserId, wordModel.Word);
+            
+            // Create local game object
+            CurrentGame = _gameEngine.CreateGame(wordModel.Word);
+            
+            Console.WriteLine($"[StartNewGameAsync] Created game ID: {_currentGameDb.Id} with word: {wordModel.Word}");
+            
+            return CurrentGame;
+        }
+        finally
+        {
+            _isCreatingGame = false;
+        }
     }
 
     public async Task<Game?> LoadCurrentGameAsync()
@@ -81,23 +99,28 @@ public class GameService : INotifyPropertyChanged
         var currentUserId = _authService.CurrentUserId;
         if (string.IsNullOrEmpty(currentUserId)) 
         {
+            Console.WriteLine("[LoadCurrentGameAsync] No user ID, clearing cache");
             ClearCache();
             return null;
         }
 
         try
         {
+            Console.WriteLine($"[LoadCurrentGameAsync] Loading game for user: {currentUserId}");
+        
             _currentGameDb = await _repository.GetCurrentGameAsync(currentUserId);
         
             if (_currentGameDb == null) 
             {
+                Console.WriteLine("[LoadCurrentGameAsync] No active game found");
                 _currentGame = null;
                 return null;
             }
 
+            // Перевірка UserId
             if (_currentGameDb.UserId != currentUserId)
             {
-                Console.WriteLine($"Game user mismatch: {_currentGameDb.UserId} != {currentUserId}");
+                Console.WriteLine($"[LoadCurrentGameAsync] User mismatch! Game userId: {_currentGameDb.UserId}, Current userId: {currentUserId}");
                 ClearCache();
                 return null;
             }
@@ -113,7 +136,8 @@ public class GameService : INotifyPropertyChanged
                 guesses = new List<string>();
             }
         
-            Console.WriteLine($"Loading game for user {currentUserId} with word: {_currentGameDb.TargetWord}");
+            Console.WriteLine($"[LoadCurrentGameAsync] Loaded game ID: {_currentGameDb.Id}, Word: {_currentGameDb.TargetWord}, Guesses: {guesses.Count}");
+        
             _currentGame = _gameEngine.CreateGame(_currentGameDb.TargetWord);
         
             // Apply previous guesses
@@ -122,11 +146,12 @@ public class GameService : INotifyPropertyChanged
                 _gameEngine.MakeGuess(_currentGame, guess);
             }
 
+            CurrentGame = _currentGame;
             return _currentGame;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading game: {ex.Message}");
+            Console.WriteLine($"[LoadCurrentGameAsync] Error: {ex.Message}");
             ClearCache();
             return null;
         }

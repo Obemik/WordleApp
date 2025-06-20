@@ -10,13 +10,13 @@ public class GameDbModel : BaseModel
     public int Id { get; set; }
     
     [Column("user_id")]
-    public string UserId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty; // UUID зберігається як string
     
     [Column("target_word")]
     public string TargetWord { get; set; } = string.Empty;
     
     [Column("guesses")]
-    public string Guesses { get; set; } = string.Empty; // JSON string of guesses
+    public string Guesses { get; set; } = string.Empty; // JSONB зберігається як string
     
     [Column("is_won")]
     public bool IsWon { get; set; }
@@ -25,7 +25,7 @@ public class GameDbModel : BaseModel
     public int AttemptsCount { get; set; }
     
     [Column("game_status")]
-    public string GameStatus { get; set; } = "InProgress"; // InProgress, Won, Lost
+    public string GameStatus { get; set; } = "InProgress";
     
     [Column("started_at")]
     public DateTime StartedAt { get; set; }
