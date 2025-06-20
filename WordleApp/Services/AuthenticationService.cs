@@ -8,17 +8,23 @@ namespace WordleApp.Services;
 public class AuthenticationService : INotifyPropertyChanged
 {
     private readonly SupabaseRepository _repository;
+    private readonly GameService _gameService;
     private bool _isLoggedIn;
     private bool _isRegisteredSuccessfully = false;
     private bool _isInitialized = false;
     private UserDbModel? _currentUser;
 
     public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? UserChanged; 
     
-    public AuthenticationService(SupabaseRepository repository)
+    public AuthenticationService(SupabaseRepository repository, GameService gameService)
     {
         _repository = repository;
-        InitializeAsync();
+        _gameService = gameService;
+    
+        // Initialize properties based on repository state
+        IsLoggedIn = _repository.IsLoggedIn;
+        CurrentUser = _repository.GetCurrentUser();
     }
     
     private async void InitializeAsync()
@@ -79,14 +85,24 @@ public class AuthenticationService : INotifyPropertyChanged
     public string? CurrentUserRole => _currentUser?.Role;
 
     // Login method that updates IsLoggedIn
-    public async Task LoginAsync(string email, string password)
+    public async Task<AuthResult> LoginAsync(string email, string password)
     {
-        await _repository.Login(email, password);
-        IsLoggedIn = _repository.IsLoggedIn;
-        
-        if (IsLoggedIn)
+        try
         {
-            await LoadCurrentUserAsync();
+            await _repository.Login(email, password);
+            IsLoggedIn = _repository.IsLoggedIn;
+        
+            if (IsLoggedIn)
+            {
+                await LoadCurrentUserAsync();
+                UserChanged?.Invoke(this, EventArgs.Empty);
+            }
+        
+            return new AuthResult { Success = IsLoggedIn };
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult { Success = false, Message = ex.Message };
         }
     }
 
@@ -106,9 +122,11 @@ public class AuthenticationService : INotifyPropertyChanged
 
     public async Task LogoutAsync()
     {
+        CurrentUser = null; 
+        UserChanged?.Invoke(this, EventArgs.Empty); 
+        
         await _repository.Logout();
         IsLoggedIn = _repository.IsLoggedIn;
-        CurrentUser = null;
     }
     
     private async Task LoadCurrentUserAsync()
@@ -132,4 +150,10 @@ public class AuthenticationService : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+}
+
+public class AuthResult
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
 }

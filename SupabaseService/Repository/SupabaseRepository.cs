@@ -15,7 +15,6 @@ public partial class SupabaseRepository
         //Get file path
         string filePath = Path.Combine(solutionDirectory, @"SupabaseService\.env\supabase_keys.json");
         
-        // Ініціалізація відбувається асинхронно в методі InitializeAsync
         JsonRepository = new JsonRepository(filePath);
     }
     

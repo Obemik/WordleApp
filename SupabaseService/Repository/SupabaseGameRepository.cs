@@ -29,17 +29,28 @@ public partial class SupabaseRepository
     public async Task<GameDbModel?> GetCurrentGameAsync(string userId)
     {
         await EnsureInitializedAsync();
-        var result = await CloudDatabase!.SupabaseClient
-            .From<GameDbModel>()
-            .Where(g => g.UserId == userId && g.GameStatus == "InProgress")
-            .Get();
         
-        return result?.Models?.FirstOrDefault();
+        try
+        {
+            var result = await CloudDatabase!.SupabaseClient
+                .From<GameDbModel>()
+                .Where(g => g.UserId == userId)
+                .Where(g => g.GameStatus == "InProgress")
+                .Get();
+            
+            return result?.Models?.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting current game: {ex.Message}");
+            return null;
+        }
     }
     
     public async Task<GameDbModel> UpdateGameAsync(GameDbModel game)
     {
         await EnsureInitializedAsync();
+        
         var result = await CloudDatabase!.SupabaseClient
             .From<GameDbModel>()
             .Where(g => g.Id == game.Id)

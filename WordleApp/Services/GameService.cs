@@ -21,12 +21,20 @@ public class GameService : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public GameService(SupabaseRepository repository, GameEngineService gameEngine, AuthenticationService authService, WordValidationService wordValidationService)
+    public GameService(SupabaseRepository repository, GameEngineService gameEngine, 
+        AuthenticationService authService, WordValidationService wordValidationService)
     {
         _repository = repository;
         _gameEngine = gameEngine;
         _authService = authService;
         _wordValidationService = wordValidationService;
+        
+        _authService.UserChanged += OnUserChanged;
+    }
+
+    private void OnUserChanged(object? sender, EventArgs e)
+    {
+        ClearCache();
     }
 
     public Game? CurrentGame
@@ -41,75 +49,113 @@ public class GameService : INotifyPropertyChanged
 
     public async Task<Game> StartNewGameAsync()
     {
-        if (_authService.CurrentUserId == null)
+        var currentUserId = _authService.CurrentUserId;
+        if (string.IsNullOrEmpty(currentUserId))
             throw new InvalidOperationException("User must be logged in to start a game");
+
+        if (_currentGameDb != null && _currentGameDb.GameStatus == "InProgress")
+        {
+            _currentGameDb.GameStatus = "Abandoned";
+            _currentGameDb.CompletedAt = DateTime.UtcNow;
+            await _repository.UpdateGameAsync(_currentGameDb);
+        }
 
         // Get random word from database
         var wordModel = await _repository.GetRandomWordAsync();
         if (wordModel == null)
             throw new InvalidOperationException("No words available in the database");
 
-        // Create new game in database
-        _currentGameDb = await _repository.CreateGameAsync(_authService.CurrentUserId, wordModel.Word);
-        
-        // Create game engine instance
+        // Create new game
         CurrentGame = _gameEngine.CreateGame(wordModel.Word);
-        
+    
+        // Create new game in database для конкретного користувача
+        _currentGameDb = await _repository.CreateGameAsync(currentUserId, wordModel.Word);
+    
+        Console.WriteLine($"Created new game for user {currentUserId} with word: {wordModel.Word}");
+    
         return CurrentGame;
     }
 
     public async Task<Game?> LoadCurrentGameAsync()
     {
-        if (_authService.CurrentUserId == null) return null;
-
-        _currentGameDb = await _repository.GetCurrentGameAsync(_authService.CurrentUserId);
-        if (_currentGameDb == null) return null;
-
-        // Перевіряємо, чи гра належить поточному користувачу
-        if (_currentGameDb.UserId != _authService.CurrentUserId)
+        var currentUserId = _authService.CurrentUserId;
+        if (string.IsNullOrEmpty(currentUserId)) 
         {
-            // Якщо ні - повертаємо null, щоб не завантажувати чужу гру
-            _currentGameDb = null;
+            ClearCache();
             return null;
         }
 
-        // Deserialize guesses
-        var guesses = JsonConvert.DeserializeObject<List<string>>(_currentGameDb.Guesses) ?? new List<string>();
-    
-        // Recreate game state
-        CurrentGame = _gameEngine.CreateGame(_currentGameDb.TargetWord);
-    
-        // Apply previous guesses
-        foreach (var guess in guesses)
+        try
         {
-            _gameEngine.MakeGuess(CurrentGame, guess);
-        }
+            _currentGameDb = await _repository.GetCurrentGameAsync(currentUserId);
+        
+            if (_currentGameDb == null) 
+            {
+                _currentGame = null;
+                return null;
+            }
 
-        return CurrentGame;
+            if (_currentGameDb.UserId != currentUserId)
+            {
+                Console.WriteLine($"Game user mismatch: {_currentGameDb.UserId} != {currentUserId}");
+                ClearCache();
+                return null;
+            }
+
+            // Deserialize guesses
+            List<string> guesses;
+            try
+            {
+                guesses = JsonConvert.DeserializeObject<List<string>>(_currentGameDb.Guesses) ?? new List<string>();
+            }
+            catch
+            {
+                guesses = new List<string>();
+            }
+        
+            Console.WriteLine($"Loading game for user {currentUserId} with word: {_currentGameDb.TargetWord}");
+            _currentGame = _gameEngine.CreateGame(_currentGameDb.TargetWord);
+        
+            // Apply previous guesses
+            foreach (var guess in guesses)
+            {
+                _gameEngine.MakeGuess(_currentGame, guess);
+            }
+
+            return _currentGame;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading game: {ex.Message}");
+            ClearCache();
+            return null;
+        }
     }
 
     public async Task<GuessResult[]> MakeGuessAsync(string guess)
     {
-        if (CurrentGame == null || _currentGameDb == null)
+        if (_currentGame == null || _currentGameDb == null)
             throw new InvalidOperationException("No active game");
 
-        // Validate word format first
-        if (!_gameEngine.IsValidWord(guess))
-            throw new InvalidOperationException("Invalid word format");
+        var currentUserId = _authService.CurrentUserId;
+        if (string.IsNullOrEmpty(currentUserId) || _currentGameDb.UserId != currentUserId)
+        {
+            throw new InvalidOperationException("Game doesn't belong to current user");
+        }
 
-        // Make the guess (game engine doesn't check dictionary)
-        var result = _gameEngine.MakeGuess(CurrentGame, guess);
+        // Make the guess
+        var result = _gameEngine.MakeGuess(_currentGame, guess);
         
         // Update database
         var guesses = JsonConvert.DeserializeObject<List<string>>(_currentGameDb.Guesses) ?? new List<string>();
         guesses.Add(guess);
         
         _currentGameDb.Guesses = JsonConvert.SerializeObject(guesses);
-        _currentGameDb.AttemptsCount = CurrentGame.Attempts;
-        _currentGameDb.GameStatus = CurrentGame.Status.ToString();
-        _currentGameDb.IsWon = CurrentGame.Status == GameStatus.Won;
+        _currentGameDb.AttemptsCount = _currentGame.Attempts;
+        _currentGameDb.GameStatus = _currentGame.Status.ToString();
+        _currentGameDb.IsWon = _currentGame.Status == GameStatus.Won;
         
-        if (CurrentGame.Status != GameStatus.InProgress)
+        if (_currentGame.Status != GameStatus.InProgress)
         {
             _currentGameDb.CompletedAt = DateTime.UtcNow;
         }
@@ -122,6 +168,13 @@ public class GameService : INotifyPropertyChanged
     public bool IsValidWord(string word)
     {
         return _gameEngine.IsValidWord(word);
+    }
+
+    public void ClearCache()
+    {
+        _currentGame = null;
+        _currentGameDb = null;
+        OnPropertyChanged(nameof(CurrentGame));
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

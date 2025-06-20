@@ -128,8 +128,17 @@ public class PlayerMenuViewModel : BaseViewModel
     {
         try
         {
-            var game = await _gameService.LoadCurrentGameAsync();
-            HasActiveGame = game != null && !game.IsGameOver;
+            _gameService.ClearCache();
+        
+            if (_authService.CurrentUserId != null)
+            {
+                var game = await _gameService.LoadCurrentGameAsync();
+                HasActiveGame = game != null && !game.IsGameOver;
+            }
+            else
+            {
+                HasActiveGame = false;
+            }
         }
         catch
         {

@@ -42,25 +42,26 @@ public partial class App : Application
         services.AddSingleton<NavigationService>();
         
         // Register application services
-        services.AddSingleton<AuthenticationService>(sp =>
-        {
-            var repository = sp.GetRequiredService<SupabaseRepository>();
-            return new AuthenticationService(repository);
-        });
-        services.AddSingleton<GameService>(sp =>
-        {
-            var repository = sp.GetRequiredService<SupabaseRepository>();
-            var gameEngine = sp.GetRequiredService<GameEngineService>();
-            var authService = sp.GetRequiredService<AuthenticationService>();
-            var wordValidationService = sp.GetRequiredService<WordValidationService>();
-            return new GameService(repository, gameEngine, authService, wordValidationService);
-        });
         services.AddSingleton<WordValidationService>();
+        
+        // Register AuthenticationService first as GameService depends on it
+        services.AddSingleton<AuthenticationService>();
+        
+        // Register GameService after AuthenticationService
+        services.AddSingleton<GameService>();
         
         // Register ViewModels
         services.AddSingleton<AuthenticationViewModel>();
         services.AddSingleton<PlayerMenuViewModel>();
-        services.AddSingleton<GamePageViewModel>();
+        services.AddSingleton<GamePageViewModel>(sp =>
+        {
+            var gameService = sp.GetRequiredService<GameService>();
+            var navigationService = sp.GetRequiredService<NavigationService>();
+            var wordValidationService = sp.GetRequiredService<WordValidationService>();
+            var authService = sp.GetRequiredService<AuthenticationService>();
+            return new GamePageViewModel(gameService, navigationService, wordValidationService, authService);
+        });
+
         services.AddSingleton<AdminPanelViewModel>();
         
         // Register Views
@@ -95,7 +96,7 @@ public partial class App : Application
             var navigationService = sp.GetRequiredService<NavigationService>();
             var authService = sp.GetRequiredService<AuthenticationService>();
             var repository = sp.GetRequiredService<SupabaseRepository>();
-            return new MainWindow(navigationService, authService, repository);
+            return new MainWindow(navigationService, authService, repository, sp); // Додаємо sp
         });
     }
 
@@ -108,3 +109,4 @@ public partial class App : Application
     }
     
 }
+

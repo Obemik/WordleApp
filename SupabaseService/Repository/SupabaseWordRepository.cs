@@ -82,7 +82,6 @@ public partial class SupabaseRepository
         }
     }
     
-    // Альтернативний метод для отримання всіх слів і перевірки локально
     public async Task<bool> CheckWordInDictionary(string word)
     {
         await EnsureInitializedAsync();
