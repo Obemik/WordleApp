@@ -30,27 +30,35 @@
                 <Setter Property="Margin" Value="2"/>
                 <Setter Property="FontWeight" Value="Bold"/>
                 <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Background" Value="#D3D6DA"/>
+                <Setter Property="Foreground" Value="Black"/>
+                <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="1"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="4">
                                 <ContentPresenter HorizontalAlignment="Center" 
-                                                  VerticalAlignment="Center"/>
+                                                  VerticalAlignment="Center"
+                                                  Content="{TemplateBinding Content}"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
                             </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Opacity" Value="0.6"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Opacity" Value="0.8"/>
-                    </Trigger>
-                    <Trigger Property="IsPressed" Value="True">
-                        <Setter Property="Opacity" Value="0.6"/>
-                    </Trigger>
-                </Style.Triggers>
             </Style>
             
             <!-- Basic Button Styles to replace MaterialDesign -->

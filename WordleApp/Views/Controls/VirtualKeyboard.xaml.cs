@@ -25,16 +25,20 @@ public partial class VirtualKeyboard : UserControl
 
     private void InitializeKeyButtons()
     {
-        var buttons = FindVisualChildren<Button>(this);
-        
-        foreach (var button in buttons)
+        Dispatcher.BeginInvoke(new Action(() =>
         {
-            var content = button.Content?.ToString();
-            if (!string.IsNullOrEmpty(content) && content.Length == 1 && char.IsLetter(content[0]))
+            var buttons = FindVisualChildren<Button>(this);
+        
+            foreach (var button in buttons)
             {
-                _keyButtons[content] = button;
+                var content = button.Content?.ToString();
+                if (!string.IsNullOrEmpty(content) && content.Length == 1 && char.IsLetter(content[0]))
+                {
+                    _keyButtons[content] = button;
+                    Console.WriteLine($"[VirtualKeyboard.InitializeKeyButtons] Registered key: {content}");
+                }
             }
-        }
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void OnLetterClick(object sender, RoutedEventArgs e)
@@ -61,18 +65,28 @@ public partial class VirtualKeyboard : UserControl
         {
             var color = ColorHelper.GetBrushFromGuessResult(result);
             var textColor = ColorHelper.GetTextBrushFromGuessResult(result);
+        
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                button.Background = color;
+                button.Foreground = textColor;
             
-            button.Background = color;
-            button.Foreground = textColor;
+                button.InvalidateVisual();
+            });
+        
+            Console.WriteLine($"[VirtualKeyboard.UpdateKeyColor] Updated key '{letter}' to {result}");
         }
     }
 
     public void UpdateKeyColors(Dictionary<string, GuessResult> letterResults)
     {
-        foreach (var kvp in letterResults)
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            UpdateKeyColor(kvp.Key, kvp.Value);
-        }
+            foreach (var kvp in letterResults)
+            {
+                UpdateKeyColor(kvp.Key, kvp.Value);
+            }
+        });
     }
 
     public void ResetKeyColors()

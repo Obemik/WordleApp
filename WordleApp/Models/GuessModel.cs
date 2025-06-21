@@ -31,13 +31,25 @@ public class LetterModel : INotifyPropertyChanged
     public string Letter
     {
         get => _letter;
-        set => SetProperty(ref _letter, value);
+        set 
+        {
+            if (SetProperty(ref _letter, value))
+            {
+                Console.WriteLine($"[LetterModel] Letter changed to: '{value}'");
+            }
+        }
     }
 
     public GuessResult Status
     {
         get => _status;
-        set => SetProperty(ref _status, value);
+        set 
+        {
+            if (SetProperty(ref _status, value))
+            {
+                Console.WriteLine($"[LetterModel] Status changed to: {value}");
+            }
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

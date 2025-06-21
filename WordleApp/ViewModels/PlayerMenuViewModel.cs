@@ -65,13 +65,12 @@ public class PlayerMenuViewModel : BaseViewModel
     {
         try
         {
-            await _gameService.StartNewGameAsync();
             HasActiveGame = true; 
             // Navigation will be handled in the code-behind via NavigationService
         }
         catch (Exception ex)
         {
-            // Handle error
+            Console.WriteLine($"[PlayerMenuViewModel.StartNewGameAsync] Error: {ex.Message}");
         }
     }
 

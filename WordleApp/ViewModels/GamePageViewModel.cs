@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using System.Collections.ObjectModel;
+using System.Windows;
 using WordleApp.ViewModels;
 using WordleApp.Services;
 using WordleApp.Models;
@@ -24,7 +25,13 @@ public class GamePageViewModel : BaseViewModel
     private int _currentAttempt = 0;
     private int _maxAttempts = 6;
     private bool _isLoading = false;
-
+    private bool _newGameRequested = false;
+    
+    public bool NewGameRequested
+    {
+        get => _newGameRequested;
+        set => SetProperty(ref _newGameRequested, value);
+    }
     
     public GamePageViewModel(GameService gameService, NavigationService navigationService, 
         WordValidationService wordValidationService, AuthenticationService authService)
@@ -33,25 +40,19 @@ public class GamePageViewModel : BaseViewModel
         _gameService = gameService;
         _navigationService = navigationService;
         _wordValidationService = wordValidationService;
-    
+
         Console.WriteLine($"[GamePageViewModel] Created for user: {_authService.CurrentUserId}");
-    
+
         GameGrid = new ObservableCollection<GuessModel>();
         VirtualKeyboard = new ObservableCollection<KeyModel>();
-    
+
         SubmitGuessCommand = new AsyncRelayCommand(SubmitGuessAsync, CanSubmitGuess);
         AddLetterCommand = new RelayCommand<string>(AddLetter);
         RemoveLetterCommand = new RelayCommand(RemoveLetter, CanRemoveLetter);
         NewGameCommand = new AsyncRelayCommand(StartNewGameAsync);
-    
+
         InitializeGameGrid();
         InitializeVirtualKeyboard();
-        
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(100); 
-            await LoadOrStartNewGame();
-        });
     }
 
     public async Task InitializeAsync()
@@ -61,6 +62,7 @@ public class GamePageViewModel : BaseViewModel
     
     public async Task InitializeNewGameAsync()
     {
+        NewGameRequested = true;
         await StartNewGameAsync();
     }
 
@@ -208,24 +210,33 @@ public class GamePageViewModel : BaseViewModel
     private async Task StartNewGameAsync()
     {
         if (_isInitializing || IsLoading) return;
-        
+    
         try
         {
             IsLoading = true;
-            
-            ResetGame();
-            CurrentGuess = string.Empty;
-            CurrentAttempt = 0;
-            IsGameOver = false;
-            GameStatus = string.Empty;
-            
+        
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                ResetGame();
+                CurrentGuess = string.Empty;
+                CurrentAttempt = 0;
+                IsGameOver = false;
+                GameStatus = string.Empty;
+            });
+        
             await _gameService.StartNewGameAsync();
-            
-            GameStatus = "Нова гра почалась! Почніть відгадувати!";
+        
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                GameStatus = "Нова гра почалась! Почніть відгадувати!";
+            });
         }
         catch (Exception ex)
         {
-            GameStatus = $"Помилка створення нової гри: {ex.Message}";
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                GameStatus = $"Помилка створення нової гри: {ex.Message}";
+            });
         }
         finally
         {
@@ -282,77 +293,134 @@ public class GamePageViewModel : BaseViewModel
 
     private void UpdateVirtualKeyboard(string guess, GuessResult[] results)
     {
+        Console.WriteLine($"[GamePageViewModel.UpdateVirtualKeyboard] Updating keyboard for word: {guess}");
+    
         for (int i = 0; i < guess.Length; i++)
         {
-            var key = VirtualKeyboard.FirstOrDefault(k => k.Letter == guess[i].ToString());
+            var letter = guess[i].ToString();
+            var key = VirtualKeyboard.FirstOrDefault(k => k.Letter == letter);
+        
             if (key != null)
             {
                 // Only update if the new status is better than the current one
-                if (results[i] > key.Status)
+                if (results[i] == GuessResult.Correct)
                 {
-                    key.Status = results[i];
+                    key.Status = GuessResult.Correct;
                 }
+                else if (results[i] == GuessResult.Present && key.Status != GuessResult.Correct)
+                {
+                    key.Status = GuessResult.Present;
+                }
+                else if (results[i] == GuessResult.Absent && key.Status == GuessResult.Absent)
+                {
+                    key.Status = GuessResult.Absent;
+                }
+            
+                Console.WriteLine($"[GamePageViewModel.UpdateVirtualKeyboard] Key '{letter}' status: {key.Status}");
             }
         }
     }
-
+    public void RefreshVirtualKeyboard()
+    {
+        OnPropertyChanged(nameof(VirtualKeyboard));
+    }
     private async Task LoadOrStartNewGame()
     {
         if (_isInitializing) return;
-    
+
         try
         {
             _isInitializing = true;
             IsLoading = true;
-        
+            
             var currentUserId = _authService.CurrentUserId;
             Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Loading for user: {currentUserId}");
-        
-            // Очищаємо всі дані перед завантаженням
-            ResetGame();
-        
+            
+            await Application.Current.Dispatcher.InvokeAsync(() => ResetGame());
+            
             var game = await _gameService.LoadCurrentGameAsync();
-        
+            
             if (game != null && !game.IsGameOver)
             {
-                Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Found active game");
-            
-                // Restore game state
-                CurrentAttempt = game.Attempts;
-                IsGameOver = game.IsGameOver;
-            
-                // Відновлюємо попередні спроби
-                for (int i = 0; i < game.Guesses.Count && i < GameGrid.Count; i++)
+                Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Found active game with {game.Guesses.Count} guesses");
+                
+                for (int i = 0; i < game.Guesses.Count; i++)
                 {
-                    var guess = game.Guesses[i];
-                
-                    for (int j = 0; j < guess.Word.Length && j < GameGrid[i].Letters.Count; j++)
-                    {
-                        GameGrid[i].Letters[j].Letter = guess.Word[j].ToString();
-                        GameGrid[i].Letters[j].Status = guess.Results[j];
-                    }
-                
-                    UpdateVirtualKeyboard(guess.Word, guess.Results);
+                    Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Guess {i}: '{game.Guesses[i].Word}' - {string.Join(",", game.Guesses[i].Results)}");
                 }
+                
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    // Restore game state
+                    CurrentAttempt = game.Attempts;
+                    IsGameOver = game.IsGameOver;
+                    
+                    Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Restoring {game.Guesses.Count} guesses to grid");
+                    
+                    for (int i = 0; i < game.Guesses.Count && i < GameGrid.Count; i++)
+                    {
+                        var guess = game.Guesses[i];
+                        
+                        Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Restoring row {i} with word '{guess.Word}'");
+                        
+                        for (int j = 0; j < guess.Word.Length && j < GameGrid[i].Letters.Count; j++)
+                        {
+                            GameGrid[i].Letters[j].Letter = guess.Word[j].ToString();
+                            GameGrid[i].Letters[j].Status = guess.Results[j];
+                        }
+                        
+                        UpdateVirtualKeyboard(guess.Word, guess.Results);
+                    }
 
-                GameStatus = "Продовжуйте відгадувати!";
+                    GameStatus = "Продовжуйте відгадувати!";
+                    
+                    OnPropertyChanged(nameof(GameGrid));
+                    OnPropertyChanged(nameof(CurrentAttempt));
+                    OnPropertyChanged(nameof(AttemptText));
+                    
+                    Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] UI update completed");
+                    VerifyGridState();
+            
+                    Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] UI update completed");
+                });
             }
             else
             {
                 Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] No active game, starting new one");
-                await _gameService.StartNewGameAsync();
-                GameStatus = "Нова гра почалась! Почніть відгадувати!";
+                await StartNewGameAsync();
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Error: {ex.Message}");
-            GameStatus = $"Помилка завантаження гри: {ex.Message}";
+            Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Stack trace: {ex.StackTrace}");
+            
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                GameStatus = $"Помилка завантаження гри";
+            });
         }
         finally
         {
             IsLoading = false;
             _isInitializing = false;
+        }
+    }
+
+    private void VerifyGridState()
+    {
+        Console.WriteLine("[GamePageViewModel.VerifyGridState] Checking grid state:");
+    
+        for (int i = 0; i < GameGrid.Count; i++)
+        {
+            var row = GameGrid[i];
+            var letters = string.Join("", row.Letters.Select(l => string.IsNullOrEmpty(l.Letter) ? "_" : l.Letter));
+        
+            if (letters.Replace("_", "").Length > 0)
+            {
+                var statuses = string.Join(",", row.Letters.Select(l => l.Status.ToString().Substring(0, 1)));
+                Console.WriteLine($"  Row {i}: '{letters}' [{statuses}]");
+            }
         }
     }
 

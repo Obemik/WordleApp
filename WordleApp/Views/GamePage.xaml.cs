@@ -4,6 +4,7 @@ using System.Windows.Input;
 using WordleApp.ViewModels;
 using WordleApp.Services;
 using WordleGameEngine.Enums;
+using System.Linq;
 
 namespace WordleApp.Views;
 
@@ -18,37 +19,57 @@ public partial class GamePage : UserControl
         DataContext = viewModel;
         _navigationService = navigationService;
         _viewModel = viewModel;
-    
+
         // Connect virtual keyboard events
         VirtualKeyboardControl.LetterPressed += OnVirtualKeyboardLetterPressed;
         VirtualKeyboardControl.EnterPressed += OnVirtualKeyboardEnterPressed;
         VirtualKeyboardControl.BackspacePressed += OnVirtualKeyboardBackspacePressed;
-    
+
         // Subscribe to ViewModel property changes
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-    
         _viewModel.GameGrid.CollectionChanged += GameGrid_CollectionChanged;
-    
+
         // Enable keyboard input
         Focusable = true;
         Focus();
     
-        Loaded += async (s, e) => await _viewModel.InitializeAsync();
+        Loaded += async (s, e) => 
+        {
+            Console.WriteLine($"[GamePage.Loaded] NewGameRequested: {_viewModel.NewGameRequested}");
+        
+            if (!_viewModel.NewGameRequested)
+            {
+                await _viewModel.InitializeAsync();
+            
+                await Task.Delay(100); 
+                UpdateGameGrid();
+                UpdateVirtualKeyboard();
+            }
+        
+            _viewModel.NewGameRequested = false;
+        };
     }
     
     private void GameGrid_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        // Оновлюємо візуальну сітку при змінах
+        Console.WriteLine("[GamePage.GameGrid_CollectionChanged] Grid collection changed");
         UpdateEntireGrid();
     }
     
     private void UpdateEntireGrid()
     {
+        Console.WriteLine("[GamePage.UpdateEntireGrid] Updating entire grid");
+    
         for (int i = 0; i < _viewModel.GameGrid.Count; i++)
         {
             var guessModel = _viewModel.GameGrid[i];
-            var word = string.Join("", guessModel.Letters.Select(l => l.Letter));
+            var word = string.Join("", guessModel.Letters.Select(l => string.IsNullOrEmpty(l.Letter) ? " " : l.Letter));
             var results = guessModel.Letters.Select(l => l.Status).ToArray();
+        
+            if (word.Trim().Length > 0)
+            {
+                Console.WriteLine($"[GamePage.UpdateEntireGrid] Row {i}: '{word}'");
+            }
         
             GameGridControl.UpdateRow(i, word.PadRight(5), results);
         }
@@ -62,7 +83,7 @@ public partial class GamePage : UserControl
         {
             UpdateGameGrid();
         }
-    
+
         if (e.PropertyName == nameof(GamePageViewModel.VirtualKeyboard))
         {
             UpdateVirtualKeyboard();
@@ -71,21 +92,23 @@ public partial class GamePage : UserControl
 
     private void UpdateGameGrid()
     {
-        // Оновлюємо всі рядки, включаючи пусті
+        Console.WriteLine($"[GamePage.UpdateGameGrid] Updating grid with {_viewModel.GameGrid.Count} rows");
+    
         for (int i = 0; i < _viewModel.GameGrid.Count; i++)
         {
             var guessModel = _viewModel.GameGrid[i];
         
-            // Створюємо слово з літер (або пусте)
             var word = "";
             var results = new GuessResult[5];
+            bool hasContent = false;
         
             for (int j = 0; j < 5; j++)
             {
-                if (j < guessModel.Letters.Count)
+                if (j < guessModel.Letters.Count && !string.IsNullOrEmpty(guessModel.Letters[j].Letter))
                 {
-                    word += string.IsNullOrEmpty(guessModel.Letters[j].Letter) ? " " : guessModel.Letters[j].Letter;
+                    word += guessModel.Letters[j].Letter;
                     results[j] = guessModel.Letters[j].Status;
+                    hasContent = true;
                 }
                 else
                 {
@@ -94,26 +117,37 @@ public partial class GamePage : UserControl
                 }
             }
         
+            if (hasContent)
+            {
+                Console.WriteLine($"[GamePage.UpdateGameGrid] Row {i}: word='{word.Trim()}'");
+            }
+        
             // Оновлюємо рядок в GameGrid
             GameGridControl.UpdateRow(i, word, results);
         }
     
-        // Оновлюємо поточний рядок з поточним введенням
         if (_viewModel.CurrentAttempt < _viewModel.GameGrid.Count && !string.IsNullOrEmpty(_viewModel.CurrentGuess))
         {
+            Console.WriteLine($"[GamePage.UpdateGameGrid] Current row {_viewModel.CurrentAttempt}: '{_viewModel.CurrentGuess}'");
             GameGridControl.UpdateCurrentRow(_viewModel.CurrentAttempt, _viewModel.CurrentGuess);
         }
     }
 
     private void UpdateVirtualKeyboard()
     {
+        Console.WriteLine("[GamePage.UpdateVirtualKeyboard] Updating virtual keyboard UI");
+    
         var keyStates = new Dictionary<string, GuessResult>();
-        
+    
         foreach (var key in _viewModel.VirtualKeyboard)
         {
             keyStates[key.Letter] = key.Status;
+            if (key.Status != GuessResult.Absent)
+            {
+                Console.WriteLine($"[GamePage.UpdateVirtualKeyboard] Key '{key.Letter}' has status: {key.Status}");
+            }
         }
-        
+    
         VirtualKeyboardControl.UpdateKeyColors(keyStates);
     }
 

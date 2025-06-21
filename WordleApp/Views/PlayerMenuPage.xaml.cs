@@ -27,6 +27,14 @@ public partial class PlayerMenuPage : UserControl
             gameService.ClearCache();
         
             _navigationService.NavigateTo<GamePage, GamePageViewModel>();
+        
+            await Task.Delay(100);
+        
+            if (app.MainWindow?.Content is GamePage gamePage && 
+                gamePage.DataContext is GamePageViewModel gamePageViewModel)
+            {
+                await gamePageViewModel.InitializeNewGameAsync();
+            }
         }
         catch (Exception ex)
         {

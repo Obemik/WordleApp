@@ -55,12 +55,18 @@ public class GameService : INotifyPropertyChanged
     {
         if (_isCreatingGame)
         {
-            Console.WriteLine("[StartNewGameAsync] Already creating game, skipping...");
-            while (_isCreatingGame && _currentGame != null)
+            Console.WriteLine("[StartNewGameAsync] Already creating game, waiting...");
+            int waitCount = 0;
+            while (_isCreatingGame && waitCount < 50)
             {
                 await Task.Delay(100);
+                waitCount++;
             }
-            return _currentGame!;
+        
+            if (_currentGame != null)
+            {
+                return _currentGame;
+            }
         }
 
         try
@@ -73,6 +79,8 @@ public class GameService : INotifyPropertyChanged
 
             Console.WriteLine($"[StartNewGameAsync] Starting new game for user: {currentUserId}");
 
+            ClearCache();
+
             // Get random word from database
             var wordModel = await _repository.GetRandomWordAsync();
             if (wordModel == null)
@@ -80,12 +88,12 @@ public class GameService : INotifyPropertyChanged
 
             // Create new game in database
             _currentGameDb = await _repository.CreateGameAsync(currentUserId, wordModel.Word);
-            
+        
             // Create local game object
             CurrentGame = _gameEngine.CreateGame(wordModel.Word);
-            
+        
             Console.WriteLine($"[StartNewGameAsync] Created game ID: {_currentGameDb.Id} with word: {wordModel.Word}");
-            
+        
             return CurrentGame;
         }
         finally
@@ -117,7 +125,6 @@ public class GameService : INotifyPropertyChanged
                 return null;
             }
 
-            // Перевірка UserId
             if (_currentGameDb.UserId != currentUserId)
             {
                 Console.WriteLine($"[LoadCurrentGameAsync] User mismatch! Game userId: {_currentGameDb.UserId}, Current userId: {currentUserId}");
@@ -130,6 +137,7 @@ public class GameService : INotifyPropertyChanged
             try
             {
                 guesses = JsonConvert.DeserializeObject<List<string>>(_currentGameDb.Guesses) ?? new List<string>();
+                Console.WriteLine($"[LoadCurrentGameAsync] Deserialized {guesses.Count} guesses: {string.Join(", ", guesses)}");
             }
             catch
             {
@@ -143,15 +151,19 @@ public class GameService : INotifyPropertyChanged
             // Apply previous guesses
             foreach (var guess in guesses)
             {
-                _gameEngine.MakeGuess(_currentGame, guess);
+                var results = _gameEngine.MakeGuess(_currentGame, guess);
+                Console.WriteLine($"[LoadCurrentGameAsync] Applied guess '{guess}' with results: {string.Join(",", results)}");
             }
 
             CurrentGame = _currentGame;
+            Console.WriteLine($"[LoadCurrentGameAsync] Game loaded successfully with {_currentGame.Guesses.Count} guesses");
+            
             return _currentGame;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[LoadCurrentGameAsync] Error: {ex.Message}");
+            Console.WriteLine($"[LoadCurrentGameAsync] Stack trace: {ex.StackTrace}");
             ClearCache();
             return null;
         }
