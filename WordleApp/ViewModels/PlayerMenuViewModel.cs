@@ -65,6 +65,8 @@ public class PlayerMenuViewModel : BaseViewModel
     {
         try
         {
+            // Clear game cache before starting new game
+            _gameService.ClearCache();
             HasActiveGame = true; 
             // Navigation will be handled in the code-behind via NavigationService
         }

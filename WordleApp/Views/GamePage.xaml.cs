@@ -44,6 +44,12 @@ public partial class GamePage : UserControl
                 await Task.Delay(100); 
                 UpdateGameGrid();
                 UpdateVirtualKeyboard();
+                
+                // Force keyboard to reset if it's a new game
+                if (_viewModel.CurrentAttempt == 0)
+                {
+                    VirtualKeyboardControl.ResetKeyColors();
+                }
             }
         
             _viewModel.NewGameRequested = false;
@@ -82,6 +88,7 @@ public partial class GamePage : UserControl
             e.PropertyName == nameof(GamePageViewModel.GameGrid))
         {
             UpdateGameGrid();
+            UpdateVirtualKeyboard(); 
         }
 
         if (e.PropertyName == nameof(GamePageViewModel.VirtualKeyboard))
@@ -150,6 +157,21 @@ public partial class GamePage : UserControl
     
         VirtualKeyboardControl.UpdateKeyColors(keyStates);
     }
+    
+    private void ForceRefreshKeyboard()
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            // Reset all keys first
+            VirtualKeyboardControl.ResetKeyColors();
+            
+            // Then apply current state
+            UpdateVirtualKeyboard();
+            
+            // Force visual update
+            VirtualKeyboardControl.InvalidateVisual();
+        });
+    }
 
     private void OnVirtualKeyboardLetterPressed(string letter)
     {
@@ -161,6 +183,10 @@ public partial class GamePage : UserControl
         if (_viewModel.SubmitGuessCommand.CanExecute(null))
         {
             await _viewModel.SubmitGuessAsync();
+            
+            // Force keyboard refresh after submitting guess
+            await Task.Delay(50); // Small delay to ensure UI has updated
+            ForceRefreshKeyboard();
         }
     }
 
@@ -169,7 +195,7 @@ public partial class GamePage : UserControl
         _viewModel.RemoveLetterCommand.Execute(null);
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override async void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         
@@ -187,7 +213,14 @@ public partial class GamePage : UserControl
         else if (e.Key == Key.Enter)
         {
             // Submit guess
-            _viewModel.SubmitGuessCommand.Execute(null);
+            if (_viewModel.SubmitGuessCommand.CanExecute(null))
+            {
+                await _viewModel.SubmitGuessAsync();
+                
+                // Force keyboard refresh after submitting guess
+                await Task.Delay(50); // Small delay to ensure UI has updated
+                ForceRefreshKeyboard();
+            }
         }
     }
 

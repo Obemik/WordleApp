@@ -68,13 +68,37 @@ public partial class VirtualKeyboard : UserControl
         
             Application.Current.Dispatcher.Invoke(() =>
             {
-                button.Background = color;
-                button.Foreground = textColor;
-            
-                button.InvalidateVisual();
+                // Get current status to check if we should update
+                var currentBrush = button.Background as SolidColorBrush;
+                var currentResult = GetGuessResultFromColor(currentBrush?.Color ?? Colors.Gray);
+                
+                // Only update if new status has higher priority
+                bool shouldUpdate = false;
+                if (currentResult == GuessResult.Absent)
+                {
+                    shouldUpdate = true;
+                }
+                else if (currentResult == GuessResult.Present && result == GuessResult.Correct)
+                {
+                    shouldUpdate = true;
+                }
+                
+                if (shouldUpdate || result == currentResult)
+                {
+                    button.Background = color;
+                    button.Foreground = textColor;
+                    button.InvalidateVisual();
+                    Console.WriteLine($"[VirtualKeyboard.UpdateKeyColor] Updated key '{letter}' from {currentResult} to {result}");
+                }
+                else
+                {
+                    Console.WriteLine($"[VirtualKeyboard.UpdateKeyColor] Skipped update for key '{letter}' - current: {currentResult}, new: {result}");
+                }
             });
-        
-            Console.WriteLine($"[VirtualKeyboard.UpdateKeyColor] Updated key '{letter}' to {result}");
+        }
+        else
+        {
+            Console.WriteLine($"[VirtualKeyboard.UpdateKeyColor] Key '{letter}' not found in dictionary");
         }
     }
 

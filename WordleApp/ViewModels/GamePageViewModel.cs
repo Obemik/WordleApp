@@ -63,7 +63,26 @@ public class GamePageViewModel : BaseViewModel
     public async Task InitializeNewGameAsync()
     {
         NewGameRequested = true;
+        
+        // Reset game state first
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            ResetGame();
+            CurrentGuess = string.Empty;
+            CurrentAttempt = 0;
+            IsGameOver = false;
+            GameStatus = string.Empty;
+        });
+        
+        // Start new game
         await StartNewGameAsync();
+        
+        // Force UI update after new game started
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            UpdateGameGrid(string.Empty, Array.Empty<GuessResult>());
+            OnPropertyChanged(nameof(VirtualKeyboard));
+        });
     }
 
     public ObservableCollection<GuessModel> GameGrid { get; }
@@ -157,6 +176,10 @@ public class GamePageViewModel : BaseViewModel
             
             // Update virtual keyboard colors
             UpdateVirtualKeyboard(CurrentGuess, results);
+            
+            // Force UI refresh
+            OnPropertyChanged(nameof(GameGrid));
+            OnPropertyChanged(nameof(VirtualKeyboard));
 
             CurrentAttempt++;
             CurrentGuess = string.Empty;
@@ -222,6 +245,9 @@ public class GamePageViewModel : BaseViewModel
                 CurrentAttempt = 0;
                 IsGameOver = false;
                 GameStatus = string.Empty;
+                
+                OnPropertyChanged(nameof(GameGrid));
+                OnPropertyChanged(nameof(VirtualKeyboard));
             });
         
             await _gameService.StartNewGameAsync();
@@ -229,6 +255,14 @@ public class GamePageViewModel : BaseViewModel
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 GameStatus = "Нова гра почалась! Почніть відгадувати!";
+                UpdateGameGrid(string.Empty, Array.Empty<GuessResult>());
+                
+                var keyStates = new Dictionary<string, GuessResult>();
+                foreach (var key in VirtualKeyboard)
+                {
+                    keyStates[key.Letter] = key.Status;
+                }
+                OnPropertyChanged(nameof(VirtualKeyboard));
             });
         }
         catch (Exception ex)
@@ -302,23 +336,39 @@ public class GamePageViewModel : BaseViewModel
         
             if (key != null)
             {
-                // Only update if the new status is better than the current one
-                if (results[i] == GuessResult.Correct)
+                var oldStatus = key.Status;
+                
+                // Priority: Correct > Present > Absent
+                // Once a key is Correct, it should never change
+                // Once a key is Present, it can only change to Correct
+                if (key.Status == GuessResult.Correct)
                 {
-                    key.Status = GuessResult.Correct;
+                    // Already correct, don't change
+                    continue;
                 }
-                else if (results[i] == GuessResult.Present && key.Status != GuessResult.Correct)
+                else if (key.Status == GuessResult.Present)
                 {
-                    key.Status = GuessResult.Present;
+                    // Can only upgrade to Correct
+                    if (results[i] == GuessResult.Correct)
+                    {
+                        key.Status = GuessResult.Correct;
+                    }
                 }
-                else if (results[i] == GuessResult.Absent && key.Status == GuessResult.Absent)
+                else // key.Status == GuessResult.Absent
                 {
-                    key.Status = GuessResult.Absent;
+                    // Can upgrade to Present or Correct
+                    key.Status = results[i];
                 }
             
-                Console.WriteLine($"[GamePageViewModel.UpdateVirtualKeyboard] Key '{letter}' status: {key.Status}");
+                if (oldStatus != key.Status)
+                {
+                    Console.WriteLine($"[GamePageViewModel.UpdateVirtualKeyboard] Key '{letter}' status changed from {oldStatus} to {key.Status}");
+                }
             }
         }
+        
+        // Force UI update
+        OnPropertyChanged(nameof(VirtualKeyboard));
     }
     public void RefreshVirtualKeyboard()
     {
@@ -357,6 +407,12 @@ public class GamePageViewModel : BaseViewModel
                     
                     Console.WriteLine($"[GamePageViewModel.LoadOrStartNewGame] Restoring {game.Guesses.Count} guesses to grid");
                     
+                    // First reset the keyboard to ensure clean state
+                    foreach (var key in VirtualKeyboard)
+                    {
+                        key.Status = GuessResult.Absent;
+                    }
+                    
                     for (int i = 0; i < game.Guesses.Count && i < GameGrid.Count; i++)
                     {
                         var guess = game.Guesses[i];
@@ -377,6 +433,7 @@ public class GamePageViewModel : BaseViewModel
                     OnPropertyChanged(nameof(GameGrid));
                     OnPropertyChanged(nameof(CurrentAttempt));
                     OnPropertyChanged(nameof(AttemptText));
+                    OnPropertyChanged(nameof(VirtualKeyboard));
                     
                     Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] UI update completed");
                     VerifyGridState();
@@ -447,6 +504,9 @@ public class GamePageViewModel : BaseViewModel
     
         OnPropertyChanged(nameof(GameGrid));
         OnPropertyChanged(nameof(VirtualKeyboard));
+        
+        // Force virtual keyboard to refresh its visual state
+        RefreshVirtualKeyboard();
     }
 }
 

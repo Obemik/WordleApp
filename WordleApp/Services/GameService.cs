@@ -79,6 +79,9 @@ public class GameService : INotifyPropertyChanged
 
             Console.WriteLine($"[StartNewGameAsync] Starting new game for user: {currentUserId}");
 
+            // Force clear all cached data
+            _currentGame = null;
+            _currentGameDb = null;
             ClearCache();
 
             // Get random word from database
