@@ -246,12 +246,6 @@ public class GamePageViewModel : BaseViewModel
                 IsGameOver = false;
                 GameStatus = string.Empty;
                 
-                // Reset keyboard immediately
-                foreach (var key in VirtualKeyboard)
-                {
-                    key.Status = GuessResult.Absent;
-                }
-                
                 OnPropertyChanged(nameof(GameGrid));
                 OnPropertyChanged(nameof(VirtualKeyboard));
             });
@@ -263,17 +257,9 @@ public class GamePageViewModel : BaseViewModel
                 GameStatus = "Нова гра почалась! Почніть відгадувати!";
                 UpdateGameGrid(string.Empty, Array.Empty<GuessResult>());
                 
-                var keyStates = new Dictionary<string, GuessResult>();
-                foreach (var key in VirtualKeyboard)
-                {
-                    keyStates[key.Letter] = key.Status;
-                }
+                // Force complete keyboard reset
                 OnPropertyChanged(nameof(VirtualKeyboard));
             });
-            
-            // Force keyboard refresh after creating new game
-            await Task.Delay(50);
-            RefreshVirtualKeyboard();
         }
         catch (Exception ex)
         {
@@ -380,10 +366,12 @@ public class GamePageViewModel : BaseViewModel
         // Force UI update
         OnPropertyChanged(nameof(VirtualKeyboard));
     }
+    
     public void RefreshVirtualKeyboard()
     {
         OnPropertyChanged(nameof(VirtualKeyboard));
     }
+    
     private async Task LoadOrStartNewGame()
     {
         if (_isInitializing) return;
@@ -447,8 +435,6 @@ public class GamePageViewModel : BaseViewModel
                     
                     Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] UI update completed");
                     VerifyGridState();
-            
-                    Console.WriteLine("[GamePageViewModel.LoadOrStartNewGame] UI update completed");
                 });
             }
             else
@@ -498,6 +484,7 @@ public class GamePageViewModel : BaseViewModel
         IsGameOver = false;
         GameStatus = string.Empty;
     
+        // Reset game grid
         foreach (var guessRow in GameGrid)
         {
             foreach (var letter in guessRow.Letters)
@@ -507,6 +494,7 @@ public class GamePageViewModel : BaseViewModel
             }
         }
     
+        // Reset virtual keyboard
         foreach (var key in VirtualKeyboard)
         {
             key.Status = GuessResult.Absent;
@@ -514,9 +502,5 @@ public class GamePageViewModel : BaseViewModel
     
         OnPropertyChanged(nameof(GameGrid));
         OnPropertyChanged(nameof(VirtualKeyboard));
-        
-        // Force virtual keyboard to refresh its visual state
-        RefreshVirtualKeyboard();
     }
 }
-

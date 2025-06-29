@@ -11,6 +11,7 @@ namespace WordleApp.Views.Controls;
 public partial class VirtualKeyboard : UserControl
 {
     private readonly Dictionary<string, Button> _keyButtons;
+    private bool _forceUpdate = false;
     
     public event System.Action<string>? LetterPressed;
     public event System.Action? EnterPressed;
@@ -59,7 +60,7 @@ public partial class VirtualKeyboard : UserControl
         BackspacePressed?.Invoke();
     }
 
-    public void UpdateKeyColor(string letter, GuessResult result)
+    public void UpdateKeyColor(string letter, GuessResult result, bool forceUpdate = false)
     {
         if (_keyButtons.TryGetValue(letter.ToUpper(), out var button))
         {
@@ -72,15 +73,19 @@ public partial class VirtualKeyboard : UserControl
                 var currentBrush = button.Background as SolidColorBrush;
                 var currentResult = GetGuessResultFromColor(currentBrush?.Color ?? Colors.Gray);
                 
-                // Only update if new status has higher priority
-                bool shouldUpdate = false;
-                if (currentResult == GuessResult.Absent)
+                // Force update if requested or follow priority rules
+                bool shouldUpdate = forceUpdate || _forceUpdate;
+                
+                if (!shouldUpdate)
                 {
-                    shouldUpdate = true;
-                }
-                else if (currentResult == GuessResult.Present && result == GuessResult.Correct)
-                {
-                    shouldUpdate = true;
+                    if (currentResult == GuessResult.Absent)
+                    {
+                        shouldUpdate = true;
+                    }
+                    else if (currentResult == GuessResult.Present && result == GuessResult.Correct)
+                    {
+                        shouldUpdate = true;
+                    }
                 }
                 
                 if (shouldUpdate || result == currentResult)
@@ -115,11 +120,20 @@ public partial class VirtualKeyboard : UserControl
 
     public void ResetKeyColors()
     {
-        foreach (var button in _keyButtons.Values)
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            button.Background = ColorHelper.GetBrushFromGuessResult(GuessResult.Absent);
-            button.Foreground = Brushes.Black;
-        }
+            _forceUpdate = true; // Enable force update mode
+            
+            foreach (var kvp in _keyButtons)
+            {
+                var button = kvp.Value;
+                button.Background = ColorHelper.GetBrushFromGuessResult(GuessResult.Absent);
+                button.Foreground = Brushes.Black;
+                button.InvalidateVisual();
+            }
+            
+            _forceUpdate = false; // Disable force update mode
+        });
     }
 
     public void SetEnabled(bool enabled)

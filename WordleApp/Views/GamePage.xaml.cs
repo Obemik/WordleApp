@@ -5,6 +5,7 @@ using WordleApp.ViewModels;
 using WordleApp.Services;
 using WordleGameEngine.Enums;
 using System.Linq;
+using CommunityToolkit.Mvvm.Input;
 
 namespace WordleApp.Views;
 
@@ -162,14 +163,21 @@ public partial class GamePage : UserControl
     {
         Application.Current.Dispatcher.Invoke(() =>
         {
-            // Reset all keys first
+            // First reset all keys completely
             VirtualKeyboardControl.ResetKeyColors();
             
-            // Then apply current state
-            UpdateVirtualKeyboard();
-            
-            // Force visual update
-            VirtualKeyboardControl.InvalidateVisual();
+            // Small delay to ensure reset is visible
+            Task.Delay(50).ContinueWith(_ =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // Then apply current state if needed
+                    UpdateVirtualKeyboard();
+                    
+                    // Force visual update
+                    VirtualKeyboardControl.InvalidateVisual();
+                });
+            });
         });
     }
 
@@ -221,6 +229,28 @@ public partial class GamePage : UserControl
                 await Task.Delay(50); // Small delay to ensure UI has updated
                 ForceRefreshKeyboard();
             }
+        }
+    }
+
+    private async void OnNewGameClick(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show("Ви впевнені, що хочете почати нову гру?", 
+            "Підтвердження", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        
+        if (result == MessageBoxResult.Yes)
+        {
+            // Force complete keyboard reset
+            VirtualKeyboardControl.ResetKeyColors();
+            
+            // Execute new game command
+            if (_viewModel.NewGameCommand.CanExecute(null))
+            {
+                await ((AsyncRelayCommand)_viewModel.NewGameCommand).ExecuteAsync(null);
+            }
+            
+            // Force refresh keyboard after game starts
+            await Task.Delay(100);
+            ForceRefreshKeyboard();
         }
     }
 
