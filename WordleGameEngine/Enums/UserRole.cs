@@ -1,6 +1,14 @@
 namespace WordleGameEngine.Enums;
 
-public class UserRole
+public enum UserRole
 {
+    /// <summary>
+    /// Звичайний гравець
+    /// </summary>
+    Player,
     
+    /// <summary>
+    /// Адміністратор
+    /// </summary>
+    Admin
 }

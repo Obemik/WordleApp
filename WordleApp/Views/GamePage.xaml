@@ -1,12 +1,68 @@
 <UserControl x:Class="WordleApp.Views.GamePage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:WordleApp.Views"
-             mc:Ignorable="d"
-             d:DesignHeight="300" d:DesignWidth="300">
+             xmlns:controls="clr-namespace:WordleApp.Views.Controls">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
         
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="20,20,20,10">
+            <TextBlock Text="WORDLE" 
+                       FontSize="28" 
+                       FontWeight="Bold" 
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding AttemptText}" 
+                       FontSize="14" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,5,0,0"
+                       Visibility="{Binding AttemptText, Converter={StaticResource StringToVisibilityConverter}}"/>
+            <TextBlock Text="{Binding GameStatus}" 
+                       FontSize="14" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,5,0,0"/>
+        </StackPanel>
+        
+        <!-- Game Grid -->
+        <controls:GameGrid Grid.Row="1" 
+                          x:Name="GameGridControl"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Margin="20"/>
+        
+        <!-- Current Guess Display -->
+        <TextBlock Grid.Row="2" 
+                   Text="{Binding CurrentGuess}" 
+                   FontSize="24" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center" 
+                   Margin="20,10"/>
+        
+        <!-- Virtual Keyboard -->
+        <controls:VirtualKeyboard Grid.Row="3" 
+                                 x:Name="VirtualKeyboardControl"
+                                 Margin="20"
+                                 HorizontalAlignment="Center"/>
+        
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="3" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    VerticalAlignment="Bottom"
+                    Margin="20">
+            <Button Content="Нова гра" 
+                    Command="{Binding NewGameCommand}"
+                    Click="OnNewGameClick"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Margin="5"/>
+            <Button Content="Вийти з гри" 
+                    Click="OnBackToMenuClick"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    Margin="5"/>
+        </StackPanel>
     </Grid>
 </UserControl>

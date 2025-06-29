@@ -1,6 +1,9 @@
 namespace WordleGameEngine.Enums;
 
-public class GuessResult
+public enum GuessResult
 {
-    
+    NotGuessed,
+    Absent,
+    Present,
+    Correct
 }
