@@ -158,7 +158,7 @@ public partial class GamePage : UserControl
         VirtualKeyboardControl.UpdateKeyColors(keyStates);
     }
     
-    private void ForceRefreshKeyboard()
+    public void ForceRefreshKeyboard()
     {
         Application.Current.Dispatcher.Invoke(() =>
         {

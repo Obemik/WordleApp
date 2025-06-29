@@ -246,6 +246,12 @@ public class GamePageViewModel : BaseViewModel
                 IsGameOver = false;
                 GameStatus = string.Empty;
                 
+                // Reset keyboard immediately
+                foreach (var key in VirtualKeyboard)
+                {
+                    key.Status = GuessResult.Absent;
+                }
+                
                 OnPropertyChanged(nameof(GameGrid));
                 OnPropertyChanged(nameof(VirtualKeyboard));
             });
@@ -264,6 +270,10 @@ public class GamePageViewModel : BaseViewModel
                 }
                 OnPropertyChanged(nameof(VirtualKeyboard));
             });
+            
+            // Force keyboard refresh after creating new game
+            await Task.Delay(50);
+            RefreshVirtualKeyboard();
         }
         catch (Exception ex)
         {
